@@ -5,44 +5,46 @@ import Salon   from '../models/Salon.js';
 import User    from '../models/User.js';
 import { awardXp } from '../utils/xp.js';
 
-// Submit or update a rating. Verification is computed server-side by
-// checking for a real prior Booking from this same email for this same
-// salon — the client cannot claim verification itself.
 export const submitRating = async (req, res) => {
-  const { salonId, customerEmail, customerName, stars, comment } = req.body;
-
-  if (!salonId || !customerEmail || !customerName || !stars) {
-    return res.status(400).json({ success: false, error: 'salonId, customerEmail, customerName, stars are required' });
+  const { salonId, stars, comment } = req.body;
+  
+  // Extract credentials strictly from validated auth context, preventing payload impersonation
+  const customerEmail = req.user?.email?.toLowerCase().trim();
+  
+  if (!salonId || !stars) {
+    return res.status(400).json({ success: false, error: 'salonId and stars rating parameter sets required' });
   }
   if (stars < 1 || stars > 5) {
-    return res.status(400).json({ success: false, error: 'stars must be between 1 and 5' });
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
-    return res.status(400).json({ success: false, error: 'Invalid email' });
+    return res.status(400).json({ success: false, error: 'Stars assignment out of system boundary bounds (1-5 only)' });
   }
 
   try {
     const salon = await Salon.findById(salonId).select('_id').lean();
-    if (!salon) return res.status(404).json({ success: false, error: 'Salon not found' });
+    if (!salon) return res.status(404).json({ success: false, error: 'Salon target record missing.' });
 
-    // Check BEFORE the upsert so we know if this is a first-time submission
-    // (earns XP) vs an edit to an existing rating (should not earn XP again
-    // — otherwise someone could farm XP by repeatedly editing one rating).
-    const existingRating = await Rating.findOne({ salonId, customerEmail: customerEmail.toLowerCase().trim() }).lean();
-    const isFirstSubmission = !existingRating;
+    // Enforce matching profile user extraction
+    const userProfile = await User.findOne({ email: customerEmail }).select('name').lean();
+    const customerName = userProfile?.name || 'Anonymous Client';
 
-    // Real verification check — was there ever a genuine booking record
-    // from this email for this salon? If yes, link it and mark verified.
+    // Verify booking completion status across history indexes to authorize submission validation
     const priorBooking = await Booking.findOne({
       salonId,
-      customerEmail: customerEmail.toLowerCase().trim(),
+      customerEmail,
     }).sort({ createdAt: -1 }).lean();
 
+    // STRICT REJECTION OPTION: If you wish to entirely block non-verified reviews, uncomment the lines below:
+    // if (!priorBooking) {
+    //   return res.status(403).json({ success: false, error: 'Review rejected. Only verified clients with past booking entries are permitted to evaluate this business.' });
+    // }
+
+    const existingRating = await Rating.findOne({ salonId, customerEmail }).lean();
+    const isFirstSubmission = !existingRating;
+
     const ratingDoc = await Rating.findOneAndUpdate(
-      { salonId, customerEmail: customerEmail.toLowerCase().trim() },
+      { salonId, customerEmail },
       {
         $set: {
-          customerName: customerName.trim(),
+          customerName,
           stars,
           comment: (comment || '').trim().slice(0, 500),
           isVerified: !!priorBooking,
@@ -52,7 +54,6 @@ export const submitRating = async (req, res) => {
       { upsert: true, new: true, runValidators: true }
     );
 
-    // Award XP only on a genuine first-time submission for this salon.
     let xpAwarded = 0;
     if (isFirstSubmission) {
       const base = await awardXp(User, customerEmail, 'rating_submitted');
@@ -72,22 +73,19 @@ export const submitRating = async (req, res) => {
         isVerified: ratingDoc.isVerified,
         createdAt: ratingDoc.createdAt,
       },
-      xpAwarded, // 0 if this was an edit to an existing rating, or no account exists for this email
+      xpAwarded,
       message: ratingDoc.isVerified
-        ? 'Thank you — your AuraVerified rating has been recorded.'
+        ? 'Thank you — your AuraVerified badge rating has been successfully logged.'
         : 'Thank you for rating. Book through AURA next time to get an AuraVerified badge on your review.',
     });
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(409).json({ success: false, error: 'You have already rated this salon — try updating it instead.' });
+      return res.status(409).json({ success: false, error: 'Duplicate entry detected. Update your historic rating profile entry instead.' });
     }
     return res.status(500).json({ success: false, error: err.message });
   }
 };
 
-// Real aggregate stats for a salon — this is what the UI displays instead
-// of any fabricated number. Returns null average if zero ratings exist yet,
-// which the frontend must render as "Not yet rated" rather than 0★ or 4.5★.
 export const getSalonRatings = async (req, res) => {
   const { salonId } = req.params;
   try {
@@ -123,12 +121,11 @@ export const getSalonRatings = async (req, res) => {
   }
 };
 
-// Check if a given email is eligible to leave a verified rating for a salon
-// (used by the frontend to decide whether to show the "rate it" prompt
-// after a booking, and whether to show the verified badge preview).
 export const checkRatingEligibility = async (req, res) => {
-  const { salonId, email } = req.query;
-  if (!salonId || !email) return res.status(400).json({ success: false, error: 'salonId and email required' });
+  const { salonId } = req.query;
+  const email = req.user?.email;
+  
+  if (!salonId || !email) return res.status(400).json({ success: false, error: 'Target query profiles parameters unfulfilled' });
   try {
     const [hasBooking, existingRating] = await Promise.all([
       Booking.exists({ salonId, customerEmail: email.toLowerCase().trim() }),
@@ -145,17 +142,14 @@ export const checkRatingEligibility = async (req, res) => {
   }
 };
 
-// Admin moderation — hide/flag a rating. Auth is enforced at the route
-// layer (requireAuth + requireAdmin in ratingRoutes.js), so by the time
-// this function runs, req.user.role is already confirmed to be 'admin'.
 export const moderateRating = async (req, res) => {
   const { status } = req.body;
   if (!['visible', 'hidden', 'flagged'].includes(status)) {
-    return res.status(400).json({ success: false, error: 'Invalid status' });
+    return res.status(400).json({ success: false, error: 'Invalid status configurations.' });
   }
   try {
     const rating = await Rating.findByIdAndUpdate(req.params.id, { status }, { new: true });
-    if (!rating) return res.status(404).json({ success: false, error: 'Rating not found' });
+    if (!rating) return res.status(404).json({ success: false, error: 'Rating target context missing.' });
     return res.json({ success: true, rating });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });

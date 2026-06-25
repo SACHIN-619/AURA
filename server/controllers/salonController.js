@@ -46,20 +46,39 @@ export const getFeatured = async (req,res) => {
   } catch(e){ return res.status(500).json({success:false,error:e.message}); }
 };
 
-export const getHubs = async (req,res) => {
+// export const getHubs = async (req,res) => {
+//   try {
+//     // Centroid is the AVERAGE of every synced salon's real GPS coordinate
+//     // in that hub — computed live from MongoDB, no static lookup table.
+//     const hubs = await Salon.aggregate([
+//       {$group:{
+//         _id:'$hub',
+//         count:{$sum:1},
+//         avgLat:{$avg:{$arrayElemAt:['$location.coordinates',1]}},
+//         avgLon:{$avg:{$arrayElemAt:['$location.coordinates',0]}},
+//       }},
+//       {$sort:{count:-1}},
+//       {$project:{hub:'$_id',count:1,lat:{$round:['$avgLat',5]},lon:{$round:['$avgLon',5]},_id:0}},
+//     ]);
+//     return res.json({success:true,data:hubs});
+//   } catch(e){ return res.status(500).json({success:false,error:e.message}); }
+// };
+
+// server/controllers/salonController.js
+export const getHubs = async (req, res) => {
   try {
-    // Centroid is the AVERAGE of every synced salon's real GPS coordinate
-    // in that hub — computed live from MongoDB, no static lookup table.
-    const hubs = await Salon.aggregate([
-      {$group:{
-        _id:'$hub',
-        count:{$sum:1},
-        avgLat:{$avg:{$arrayElemAt:['$location.coordinates',1]}},
-        avgLon:{$avg:{$arrayElemAt:['$location.coordinates',0]}},
-      }},
-      {$sort:{count:-1}},
-      {$project:{hub:'$_id',count:1,lat:{$round:['$avgLat',5]},lon:{$round:['$avgLon',5]},_id:0}},
-    ]);
-    return res.json({success:true,data:hubs});
-  } catch(e){ return res.status(500).json({success:false,error:e.message}); }
+    // 100% Dynamic: Pulls exactly whatever hubs currently have data inside your database collection!
+    const uniqueHubs = await Salon.distinct('hub');
+    const uniqueCities = await Salon.distinct('address.city');
+
+    res.json({ 
+      success: true, 
+      data: {
+        hubs: uniqueHubs,     // Returns ['Jubilee Hills', 'Gachibowli', ...] dynamically
+        cities: uniqueCities  // Returns ['Hyderabad', ...] dynamically
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 };

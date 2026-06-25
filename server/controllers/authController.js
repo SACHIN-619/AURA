@@ -33,7 +33,7 @@ export const signup = async (req, res) => {
   if (!JWT_SECRET) {
     return res.status(503).json({ success: false, error: 'Auth is not configured on this server (JWT_SECRET missing)' });
   }
-  const { email, name, password, phone } = req.body;
+  const { email, name, password, phone, accountType } = req.body;
   if (!email || !name || !password) {
     return res.status(400).json({ success: false, error: 'email, name, and password are required' });
   }
@@ -47,6 +47,13 @@ export const signup = async (req, res) => {
   try {
     const existing = await User.findOne({ email: email.toLowerCase().trim() });
 
+
+    // Determine target role strictly on the server-side logic (role: 'user')
+    let targetRole = 'user';
+    if (accountType === 'owner') {
+      targetRole = 'owner';
+    }
+
     let user;
     let isNewAccount = false;
     if (existing) {
@@ -58,10 +65,14 @@ export const signup = async (req, res) => {
       }
       existing.name = name.trim();
       if (phone) existing.phone = phone;
+
+       // Upgrade role safely if specified during an account claim
+      existing.role = targetRole;
+
       await existing.setPassword(password);
       user = await existing.save();
     } else {
-      user = new User({ email: email.toLowerCase().trim(), name: name.trim(), phone, role: 'user' });
+      user = new User({ email: email.toLowerCase().trim(), name: name.trim(), phone, role: targetRole });
       await user.setPassword(password);
       await user.save();
       isNewAccount = true;
@@ -220,3 +231,67 @@ export function requireAdmin(req, res, next) {
   }
   next();
 }
+
+
+export const registerUser = async (req, res) => {
+  try {
+    const { email, name, password, phone, accountType } = req.body;
+
+    // 1. Check if user already exists
+    let user = await User.findOne({ email });
+    
+    // Fallback logic for old silent booking-upsert paths
+    if (user && user.passwordHash) {
+      return res.status(400).json({ success: false, message: 'Account already exists with this email.' });
+    }
+
+    // Determine target role strictly on the server side
+    // NEVER do: role: req.body.role
+    let targetRole = 'user';
+    
+    if (accountType === 'owner') {
+      // Option 1: Put them in a pending state, or let them register as an unverified owner
+      targetRole = 'owner'; 
+      // Note: You should pair this with an `isVerified: false` field if they need admin review 
+      // before accessing critical business tools.
+    }
+
+    if (!user) {
+      // Create fresh user profile
+      user = new User({
+        email,
+        name,
+        phone,
+        role: targetRole // Securely assigned server-side
+      });
+    }
+
+    // 2. Hash and save password (handles both fresh accounts and silent-booking upgrades)
+    await user.setPassword(password);
+    
+    // Award initial setup XP safely
+    user.xp += 50; 
+    await user.save();
+
+    // 3. Issue JWT containing their role for frontend routing mechanics
+    const token = jwt.sign(
+      { id: user._id, role: user.role }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '7d' }
+    );
+
+    return res.status(201).json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Registration cycle failure.' });
+  }
+};

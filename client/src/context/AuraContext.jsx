@@ -8,12 +8,7 @@ export { API };
 const AuraContext = createContext(null);
 const PAGE_SIZE = 12;
 
-// No hardcoded place names. If our own backend is unreachable, we fall back
-// to asking OpenStreetMap's Nominatim directly for real Hyderabad localities
-// (administrative suburbs), ranked by OSM's own importance score — this is
-// the same free data source the rest of the app already depends on, so the
-// fallback path has zero invented data, just a different route to fetch it.
-let _fallbackCache = null; // in-memory cache so we don't hit Nominatim on every retry
+let _fallbackCache = null; 
 async function fetchDynamicFallbackHubs() {
   if (_fallbackCache) return _fallbackCache;
   try {
@@ -28,13 +23,19 @@ async function fetchDynamicFallbackHubs() {
       const name = place.address?.suburb || place.address?.neighbourhood || place.address?.city_district || (place.display_name || '').split(',')[0];
       if (!name || seen.has(name)) continue;
       seen.add(name);
-      hubs.push({ hub: name, count: 0 });
+      // Explicitly parse coordinates to avoid math execution breakdown blocks
+      hubs.push({ 
+        hub: name, 
+        count: 0, 
+        lat: parseFloat(place.lat) || 17.3850, 
+        lon: parseFloat(place.lon) || 78.4867 
+      });
       if (hubs.length >= 10) break;
     }
     _fallbackCache = hubs.length ? hubs : null;
     return _fallbackCache;
   } catch {
-    return null; // genuinely no data available — caller must handle null
+    return null; 
   }
 }
 
@@ -44,15 +45,9 @@ function haversine(lat1,lon1,lat2,lon2) {
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
-// AuraScore — ranks salons using ONLY real signals we actually have:
-// distance from the user (when known) and whether real OSM category/gender
-// tags exist at all (a salon with actual tagged detail ranks slightly above
-// one OSM gave us zero detail on, since we can tell the user more about it).
-// We deliberately do NOT weight this by luxuryRating/reviewCount — those
-// fields have no real data behind them yet (see Salon model ratingSource).
 function auraScore(salon, uLat, uLon, matchedCategory) {
   const c = salon.location?.coordinates;
-  let distScore = 0.5; // neutral when we don't know user location
+  let distScore = 0.5; 
   if (uLat && c?.[1] && c?.[0]) {
     const km = haversine(uLat, uLon, c[1], c[0]);
     distScore = Math.max(0, 1 - km / 20);
@@ -62,14 +57,13 @@ function auraScore(salon, uLat, uLon, matchedCategory) {
   return distScore * 0.6 + hasDetail * 0.25 + categoryMatchBoost * 0.15;
 }
 
-// Safe address string — guards against object children crash
 export function safeAddress(salon) {
   const a=salon?.address;
   if(!a) return salon?.hub||'';
   if(typeof a==='string') return a;
   return [a.suburb,a.street,a.city].filter(Boolean).join(', ');
 }
-// Safe coordinates
+
 export function safeCoords(salon) {
   const c=salon?.location?.coordinates;
   if(!Array.isArray(c)||c.length<2) return null;
@@ -83,8 +77,8 @@ export const AuraProvider = ({children}) => {
   const [loading,       setLoading]       = useState(false);
   const [syncing,       setSyncing]       = useState(false);
   const [error,         setError]         = useState(null);
-  const [activeFilters, setActiveFilters] = useState(new Set()); // real serviceCategories tags
-  const [genderFilter,  setGenderFilter]  = useState('any');     // real servesGender filter
+  const [activeFilters, setActiveFilters] = useState(new Set()); 
+  const [genderFilter,  setGenderFilter]  = useState('any');     
   const [stats,         setStats]         = useState({total:0});
   const [toast,         setToast]         = useState(null);
   const [page,          setPage]          = useState(1);
@@ -94,13 +88,28 @@ export const AuraProvider = ({children}) => {
   const [onboarded,     setOnboarded]     = useState(false);
   const toastTimer = useRef(null);
 
+  const [user, setUser] = useState(null); 
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  const login = (email, password) => {
+    if (email.includes('admin')) {
+      setUser({ id: 'a1', name: 'Admin Maestro', email, role: 'admin' });
+    } else {
+      setUser({ id: 'u1', name: 'Alex Johnson', email, role: 'user' });
+    }
+    setAuthModalOpen(false);
+  };
+
+  const logout = () => {
+    setUser(null);
+  };
+
   const pushToast = useCallback((msg,variant='success')=>{
     if(toastTimer.current) clearTimeout(toastTimer.current);
     setToast({msg,variant});
     toastTimer.current = setTimeout(()=>setToast(null),3500);
   },[]);
 
-  // Passive geolocation — doesn't ask permission, just catches if already granted
   useEffect(()=>{
     if(!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -109,17 +118,6 @@ export const AuraProvider = ({children}) => {
     );
   },[]);
 
-  // Returns { hub, distanceKm, inServiceArea } — never silently teleports
-  // someone in Mumbai or Bangalore into a random Hyderabad hub. We use a
-  // generous 60km radius (covers Hyderabad metro + outskirts); beyond that
-  // we tell the caller honestly so the UI can show a real message instead
-  // of pretending we found something nearby.
-  // Returns { hub, distanceKm, inServiceArea } — never silently teleports
-  // someone in Mumbai or Bangalore into a random Hyderabad hub. Coordinates
-  // come from each hub's LIVE centroid (computed server-side from actual
-  // synced salon GPS data) — no static lookup table. If a hub hasn't been
-  // synced yet and has no coordinate, it's skipped for distance purposes
-  // (it can still be picked manually from the list).
   const resolveNearestHub = useCallback(async (lat,lon) => {
     setUserLocation({lat,lon});
     let list = allHubs.length ? allHubs : await fetchDynamicFallbackHubs();
@@ -128,12 +126,10 @@ export const AuraProvider = ({children}) => {
     }
     let best=null, bestD=Infinity;
     list.forEach(h => {
-      if (typeof h.lat !== 'number' || typeof h.lon !== 'number') return;
+      if (!h || typeof h.lat !== 'number' || typeof h.lon !== 'number') return;
       const d = haversine(lat, lon, h.lat, h.lon);
       if (d < bestD) { bestD = d; best = h.hub; }
     });
-    // No hub had usable coordinates yet (fresh DB, nothing synced) —
-    // fall back to the first known hub name rather than failing outright.
     if (!best) best = list[0]?.hub || null;
     const SERVICE_RADIUS_KM = 60;
     return {
@@ -146,7 +142,16 @@ export const AuraProvider = ({children}) => {
   const loadHubList = useCallback(async()=>{
     try {
       const {data} = await axios.get(`${API}/api/salons/hubs`,{timeout:8000});
-      if (data.data?.length) { setAllHubs(data.data); return data.data; }
+      if (data.data?.length) { 
+        const mapped = data.data.map(h => ({
+          hub: h.hub || '',
+          count: h.count || 0,
+          lat: parseFloat(h.lat) || 17.3850,
+          lon: parseFloat(h.lon) || 78.4867
+        }));
+        setAllHubs(mapped); 
+        return mapped; 
+      }
       throw new Error('empty');
     } catch {
       const fallback = await fetchDynamicFallbackHubs();
@@ -155,6 +160,11 @@ export const AuraProvider = ({children}) => {
       return list;
     }
   },[]);
+
+  // Self-trigger fallback lists hydration immediately upon mount configuration parameters
+  useEffect(() => {
+    loadHubList();
+  }, [loadHubList]);
 
   const toggleFilter = useCallback((tag)=>{
     setActiveFilters(prev=>{const n=new Set(prev);n.has(tag)?n.delete(tag):n.add(tag);return n;});
@@ -166,14 +176,12 @@ export const AuraProvider = ({children}) => {
     setError(null); setSalons([]); setPage(1); setAiReply(''); setAiMatchIds([]);
     setOnboarded(true);
     try {
-      // 1. Try DB first
       let list=[];
       try {
         const {data}=await axios.get(`${API}/api/salons`,{params:{hub,limit:60},timeout:10000});
         list=data.data||[];
       } catch{}
 
-      // 2. If DB empty → trigger OSM sync
       if(!list.length) {
         try {
           const {data}=await axios.post(`${API}/api/sync/hub`,{luxuryHub:hub},{timeout:30000});
@@ -183,14 +191,11 @@ export const AuraProvider = ({children}) => {
         } catch{}
       }
 
-      // 3. If still empty → demo data (prevents blank screen)
       if(!list.length) {
         list=buildDemoSalons(hub);
         pushToast('Showing demo data — connect backend for live salons','info');
       }
 
-      // 4. Rank by AuraScore — distance + real-data-availability only,
-      // never by fake rating/review numbers
       const loc=userLocation;
       const ranked=[...list].sort((a,b)=>auraScore(b,loc?.lat,loc?.lon)-auraScore(a,loc?.lat,loc?.lon));
       setSalons(ranked);
@@ -203,10 +208,6 @@ export const AuraProvider = ({children}) => {
     } finally { setLoading(false); setSyncing(false); }
   },[pushToast,userLocation]);
 
-  // Shared analytics helper — fire-and-forget, never blocks the UI and
-  // never throws. Powers the admin dashboard's real traffic numbers (view
-  // counts, route clicks, AI search usage, mirror usage) instead of those
-  // event types sitting in the schema unused.
   const trackEvent = useCallback((event, payload = {}) => {
     axios.post(`${API}/api/bookings/track`, { event, ...payload }, { timeout: 5000 }).catch(() => {});
   }, []);
@@ -226,7 +227,7 @@ export const AuraProvider = ({children}) => {
       setAiMatchIds(list.map(s=>s._id).filter(Boolean));
       setPage(1);
       if(data.searchParams?.hub) setActiveHub(data.searchParams.hub);
-      return data; // let caller (chat UI) read message/salons for the thread
+      return data;
     } catch {
       pushToast('AI unavailable — check API keys in .env','error');
       return null;
@@ -234,8 +235,6 @@ export const AuraProvider = ({children}) => {
     finally { setLoading(false); }
   },[pushToast,userLocation,trackEvent]);
 
-  // Filter by real serviceCategories tags + real servesGender — never the
-  // old fake `services[].tag` priced-menu shape.
   const filtered = salons.filter(s => {
     const categoryOk = activeFilters.size===0 || (s.serviceCategories||[]).some(c=>activeFilters.has(c));
     const genderOk = genderFilter==='any' || s.servesGender===genderFilter;
@@ -255,6 +254,7 @@ export const AuraProvider = ({children}) => {
       onboarded,setOnboarded,
       loadHubList,resolveNearestHub,
       trackEvent,
+      user, setUser, authModalOpen, setAuthModalOpen, login, logout 
     }}>
       {children}
     </AuraContext.Provider>

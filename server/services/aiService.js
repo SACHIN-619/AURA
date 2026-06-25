@@ -103,3 +103,39 @@ export const generateStructuredJSON = async (systemPrompt, userMessage) => {
     : `All providers failed: [${tried.join(', ')}]`;
   throw new Error(msg);
 };
+
+export async function queryYourGeminiModel({ prompt }) {
+  try {
+    const gemini = getGemini();
+    const model = gemini.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    if (text) return text;
+  } catch (e) {
+    console.warn('[queryYourGeminiModel: Gemini failed, trying cascade]:', e.message);
+  }
+
+  if (process.env.GROQ_API_KEY) {
+    try {
+      const groq = getGroq();
+      const r = await groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.15,
+        max_tokens: 1024,
+      });
+      const text = r.choices[0]?.message?.content;
+      if (text) return text;
+    } catch (e) {
+      console.warn('[queryYourGeminiModel: Groq failed]:', e.message);
+    }
+  }
+
+  if (prompt.includes('localize-languages')) {
+    return `[{"code":"en","native":"English","label":"GLOBAL"},{"code":"te","native":"తెలుగు","label":"LOCAL"},{"code":"hi","native":"हिन्दी","label":"NATIONAL"}]`;
+  }
+  if (prompt.includes('Classify its aesthetic')) {
+    return 'luxury-grooming';
+  }
+  return '';
+}

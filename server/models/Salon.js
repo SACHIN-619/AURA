@@ -16,35 +16,48 @@ const SalonSchema = new mongoose.Schema({
   contact:      { phone: String, website: String, email: String },
   openingHours: { type: String },
 
-  // Real category tags extracted from OSM `beauty=*` when present.
-  // Empty array means OSM had no service detail for this salon — the UI
-  // must show "Contact salon for services & pricing", not invent a menu.
-  serviceCategories: { type: [String], default: [] },
+  // Famous Landmarks near this salon for proximity matching
+  proximityLandmarks: [{
+    name: { type: String },
+    distanceKm: { type: Number }
+  }],
 
-  // Who the salon serves, ONLY if OSM actually tagged it (unisex/male/female).
-  // null = unknown, never assumed.
+  // UI Image Matrix for premium bento-box layouts (Enriched with AI Sync Nodes)
+  images: {
+    banner: { type: String, default: null },
+    thumbnail: { type: String, default: null },
+    gallery: [{ type: String }],
+    // 4-Layer Mesh Engine Fields
+    aiMediaUrl: { type: String, default: null },
+    aiFallbackUrl: { type: String, default: null },
+    aiTags: { type: String, default: null },
+    lastAiEnrichedAt: { type: Date, default: null }
+  },
+
+  serviceCategories: { type: [String], default: [] },
   servesGender: { type: String, enum: ['unisex','male','female', null], default: null },
 
-  // luxuryRating/reviewCount are clearly flagged when synthetic. We do not
-  // pretend Math.random() output is a real Google rating.
   luxuryRating:  { type: Number, min: 1, max: 5, default: null },
   reviewCount:   { type: Number, default: null },
   ratingSource:  { type: String, enum: ['synthetic_placeholder','real'], default: 'synthetic_placeholder' },
 
+  // Matches exact smoke test enum constraints
   tier:         { type: String, enum: ['platinum','gold','silver','unrated'], default: 'unrated' },
   isFeatured:   { type: Boolean, default: false },
   lastSyncedAt: { type: Date, default: Date.now },
 
-  // AURA Verified Listing — distinct from rating verification (Rating.js
-  // isVerified, which means "this reviewer actually booked here"). This
-  // means an admin manually confirmed the salon's basic info (name, address,
-  // contact, category) is accurate. Set ONLY by an admin-role account via
-  // PATCH /api/admin/salons/:id/verify — never inferred, never automatic,
-  // never settable by anyone else including the salon "owner" since there's
-  // no owner-claim system yet.
+  // Optional price tier classifications set by verified admins
+  priceTier: { type: String, enum: ['Budget', 'Moderate', 'Luxury', 'Premium Luxury', null], default: null },
+
+  aiResearchData: {
+    summary: { type: String, default: null },
+    estimatedBasePrice: { type: String, default: null }
+  },
+
   listingVerified:   { type: Boolean, default: false },
   listingVerifiedAt: { type: Date, default: null },
   listingVerifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  badgeType: { type: String, enum: ['AURA_VERIFIED', 'NONE'], default: 'NONE' }
 }, { timestamps: true, versionKey: false });
 
 SalonSchema.index({ location: '2dsphere' });

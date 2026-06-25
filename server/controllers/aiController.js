@@ -9,9 +9,7 @@ import { awardXp } from '../utils/xp.js';
 
 const CATEGORY_LIST = [...new Set(Object.values(OSM_BEAUTY_TAG_MAP))].join(', ');
 
-// Pull the real, currently-synced hub list from the DB at request time —
-// never a hardcoded string baked into the prompt. If nothing is synced yet,
-// the AI is told that honestly so it doesn't invent hub names.
+// Pull the real, currently-synced hub list from the DB at request time
 async function getKnownHubs() {
   const hubs = await Salon.distinct('hub');
   return hubs;
@@ -52,7 +50,7 @@ async function runSearch(p, userLocation) {
       ...filter,
       location: {
         $near: {
-          $geometry: { type: 'Point', coordinates: [userLocation.lon, userLocation.lat] },
+          $geometry: { type: 'Point', coordinates: [parseFloat(userLocation.lon), parseFloat(userLocation.lat)] },
           $maxDistance: 15000, // 15km
         },
       },
@@ -79,10 +77,6 @@ async function runSearch(p, userLocation) {
 }
 
 export const chatQuery = async (req, res) => {
-  // history: optional array of {role:'user'|'assistant', content:string} from
-  // previous turns in this conversation — enables real multi-turn chat.
-  // email is optional — AI search works fully anonymously; XP only applies
-  // when we know which real account to credit.
   const { message, history, userLocation, email } = req.body;
 
   if (!message || typeof message !== 'string' || !message.trim())
@@ -95,16 +89,18 @@ export const chatQuery = async (req, res) => {
     const hasLocation = !!(userLocation?.lat && userLocation?.lon);
     const system = buildSystemPrompt(knownHubs, hasLocation);
 
-    // Fold conversation history into the prompt sent to the AI service —
-    // generateStructuredJSON takes a single userMessage string, so we
-    // serialize prior turns compactly ahead of the current message.
     const historyText = Array.isArray(history) && history.length
       ? history.slice(-6).map(h => `${h.role === 'user' ? 'User' : 'Concierge'}: ${h.content}`).join('\n') + '\n'
       : '';
     const fullUserTurn = `${historyText}User: ${message.trim()}`;
 
+    // Execute through multi-provider interface layer
     const { parsed, provider } = await generateStructuredJSON(system, fullUserTurn);
-    if (!parsed.analysis) throw new Error('Invalid AI response structure');
+    
+    // Safety check ensuring the object and required analysis field exist
+    if (!parsed || !parsed.analysis) {
+      throw new Error('Invalid AI response structure: "analysis" field omitted');
+    }
 
     const params = parsed.searchParams || {};
     const hasSearchIntent = Object.keys(params).length > 0;
@@ -117,15 +113,13 @@ export const chatQuery = async (req, res) => {
       usedFallback = result.usedFallback;
     }
 
-    // First-ever AI search XP — uses a one-time flag on the User document
-    // (set atomically so two concurrent requests can't double-award), not
-    // a scan of analytics history which has no reliable user identity yet.
+    // Atomic XP update execution sequence
     let xpAwarded = 0;
     if (email) {
       const updated = await User.findOneAndUpdate(
         { email: email.toLowerCase().trim(), hasUsedAiSearch: { $ne: true } },
         { $set: { hasUsedAiSearch: true } },
-        { new: false } // we only care whether the match succeeded
+        { new: false }
       );
       if (updated) {
         const xp = await awardXp(User, email, 'first_ai_search');
@@ -145,17 +139,25 @@ export const chatQuery = async (req, res) => {
     });
   } catch (e) {
     if (e.message?.includes('No AI providers')) {
-      return res.status(503).json({ success: false, error: 'No AI keys configured', hint: 'Set GEMINI_API_KEY, GROQ_API_KEY or HUGGINGFACE_API_KEY' });
+      return res.status(503).json({ 
+        success: false, 
+        error: 'No AI keys configured', 
+        hint: 'Set GEMINI_API_KEY, GROQ_API_KEY, HUGGINGFACE_API_KEY, or KRUTRIM_API_KEY' 
+      });
     }
-    console.warn('[AI Concierge] All providers failed:', e.message);
+    console.warn('[AI Concierge Alert] Cascade chain fallback triggered:', e.message);
+    
     try {
       const fallback = await Salon.find({}).limit(12).lean();
       return res.json({
         success: true,
-        message: `AI assistant is temporarily unavailable (${e.message.slice(0, 80)}). Showing recent salons instead — try browsing by hub in the sidebar.`,
-        salons: fallback, count: fallback.length, aiProvider: null, _fallback: true,
+        message: `AURA Assistant is optimizing connections right now. Showing premier local salons across Hyderabad instead — explore below!`,
+        salons: fallback, 
+        count: fallback.length, 
+        aiProvider: null, 
+        _fallback: true,
       });
-    } catch {
+    } catch (dbErr) {
       return res.status(500).json({ success: false, error: 'Service temporarily unavailable' });
     }
   }

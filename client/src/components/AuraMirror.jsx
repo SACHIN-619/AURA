@@ -276,3 +276,5 @@ const S={
   cropBox:{position:'relative',width:240,height:240,margin:'0 auto',borderRadius:'50%',overflow:'hidden',background:'#000',cursor:'grab',touchAction:'none'},
   cropOverlay:{position:'absolute',inset:0,border:'2px solid rgba(212,175,55,0.5)',borderRadius:'50%',pointerEvents:'none',boxShadow:'0 0 0 2000px rgba(3,2,4,0.6)'},
 };
+
+

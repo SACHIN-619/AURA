@@ -62,6 +62,7 @@ if (process.env.NODE_ENV === 'production') {
 app.use('/api/sync',     syncRoutes);
 app.use('/api/salons',   salonRoutes);
 app.use('/api/chat',     aiRoutes);
+app.use('/api/ai',       aiRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/users',    userRoutes);
 app.use('/api/search',   searchRoutes);
