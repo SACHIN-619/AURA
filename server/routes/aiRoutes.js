@@ -59,8 +59,9 @@ router.post('/translate', async (req, res) => {
       `Respond with ONLY the exact translated text. Do not add markdown code blocks, quotes, formatting, or any explanations.\n\n` +
       `Text to translate: "${text}"`;
 
-    const translatedText = await queryYourGeminiModel({ prompt });
-    res.json({ success: true, translatedText: translatedText.trim() });
+    const translatedTextRaw = await queryYourGeminiModel({ prompt });
+    const translatedText = translatedTextRaw.replace(/```[a-z]*\s*/gi, '').replace(/```/g, '').trim();
+    res.json({ success: true, translatedText });
   } catch (error) {
     console.error('Translation error:', error);
     res.status(500).json({ success: false, error: error.message });

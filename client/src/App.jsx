@@ -138,9 +138,12 @@ function PageHeader() {
 }
 
 // ── Top Bar — Language + Account + Text Scale, all inline ─────────────────
-function TopBar({ fontScale, setFontScale }) {
+function TopBar({ fontScale, setFontScale, activeHub, openOnboarding }) {
   return (
     <div style={S.topBar}>
+      <button style={{ ...S.accountBtn, padding: '0.4rem 0.8rem', background: 'rgba(10,8,14,0.88)' }} onClick={openOnboarding} title="Change Location">
+        📍 {activeHub || 'Hyderabad'}
+      </button>
       <TextScaleControls scale={fontScale} setScale={setFontScale} />
       <LanguageSelector />
       <AccountButton />
@@ -170,7 +173,8 @@ function AppShell({ showApp }) {
     }
   }, [onbDone, allHubs, activeHub, syncHub]);
 
-  const showOnboarding = showApp && !onboarded && !onbDone;
+  const [forceOnboarding, setForceOnboarding] = useState(false);
+  const showOnboarding = (showApp && !onboarded && !onbDone) || forceOnboarding;
   const [showInactivity, setShowInactivity] = useState(false);
   const { user, setAuthModalOpen } = useAura();
 
@@ -207,12 +211,17 @@ function AppShell({ showApp }) {
     };
   }, [user]);
 
+  const closeOnboarding = () => {
+    setOnbDone(true);
+    setForceOnboarding(false);
+  };
+
   return (
     <>
       <HubLoader hubName={activeHub} isVisible={syncing} />
       <AnimatePresence>
         {showOnboarding && (
-          <LocationOnboarding key="onb" onComplete={() => setOnbDone(true)} />
+          <LocationOnboarding key="onb" onComplete={closeOnboarding} />
         )}
       </AnimatePresence>
 
@@ -230,7 +239,7 @@ function AppShell({ showApp }) {
             {/* main-content class enables responsive CSS from index.css */}
             <main className="main-content" style={{ ...S.main, marginLeft: sidebarCollapsed ? 50 : 240, transition: 'margin-left 0.25s ease' }}>
               {/* Fixed top-right bar: A/A+/A++ · Language · Account */}
-              <TopBar fontScale={fontScale} setFontScale={setFontScale} />
+              <TopBar fontScale={fontScale} setFontScale={setFontScale} activeHub={activeHub} openOnboarding={() => setForceOnboarding(true)} />
               <MainAppRoutes />
             </main>
           </motion.div>

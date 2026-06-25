@@ -186,7 +186,7 @@ export default function BookingModal({ salon, onClose, onSuccess }) {
                 <motion.div key="c" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                   <Field label={`${t('booking_your_name')} *`} err={errs.name}><input style={{ ...S.inp, ...(errs.name ? S.inpErr : {}) }} value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Priya Sharma" maxLength={60} /></Field>
                   <Field label={`${t('booking_email')} *`} err={errs.email}><input style={{ ...S.inp, ...(errs.email ? S.inpErr : {}) }} type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="you@email.com" /></Field>
-                  <Field label="Phone (optional)"><input style={S.inp} type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+91 98765 43210" /></Field>
+                  <Field label="Phone (optional)"><input style={S.inp} type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+91 90000 00000" /></Field>
                   <button style={S.next} onClick={() => validateContact() && setStep('details')}>{t('booking_continue')}</button>
                 </motion.div>
               )}
@@ -206,9 +206,9 @@ export default function BookingModal({ salon, onClose, onSuccess }) {
                     </select>
                   </Field>
                   <Field label="Notes (optional)"><textarea style={{ ...S.inp, height: 64, resize: 'none' }} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Any special requirements…" maxLength={400} /></Field>
-                  <div style={{ display: 'flex', gap: '0.6rem' }}>
-                    <button style={S.back2} onClick={() => setStep('contact')}>{t('booking_back')}</button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.5rem' }}>
                     <button style={S.next} onClick={() => validateDetails() && setStep('confirm')}>{t('booking_review')}</button>
+                    <button style={{...S.back2, width: '100%'}} onClick={() => setStep('contact')}>{t('booking_back')}</button>
                   </div>
                 </motion.div>
               )}
@@ -232,11 +232,11 @@ export default function BookingModal({ salon, onClose, onSuccess }) {
                     ))}
                   </div>
                   <p style={{ fontFamily: FONT.mono, fontSize: '0.4rem', letterSpacing: '0.08em', color: 'rgba(255,248,220,0.3)', lineHeight: 1.7, marginBottom: '1rem' }}>This is a request, not a confirmed booking. We'll email you once the salon responds.</p>
-                  <div style={{ display: 'flex', gap: '0.6rem' }}>
-                    <button style={S.back2} onClick={() => setStep('details')}>{t('booking_back')}</button>
-                    <motion.button style={{ ...S.next, flex: 2, opacity: busy ? 0.6 : 1 }} onClick={submitRequest} disabled={busy} whileHover={busy ? {} : { filter: 'brightness(1.06)' }} whileTap={busy ? {} : { scale: 0.98 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                    <motion.button style={{ ...S.next, width: '100%', opacity: busy ? 0.6 : 1 }} onClick={submitRequest} disabled={busy} whileHover={busy ? {} : { filter: 'brightness(1.06)' }} whileTap={busy ? {} : { scale: 0.98 }}>
                       {busy ? 'Sending…' : `✦ ${t('booking_confirm')}`}
                     </motion.button>
+                    <button style={{...S.back2, width: '100%'}} onClick={() => setStep('details')}>{t('booking_back')}</button>
                   </div>
                 </motion.div>
               )}

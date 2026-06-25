@@ -5,7 +5,7 @@ import { useAura, API } from '../context/AuraContext';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { safeAddress, safeCoords } from '../context/AuraContext';
 import { getSalonPhoto, parseOpeningHours, CATEGORY_LABELS, COLOR, FONT, SPRING } from '../utils/tokens';
-import { PinIcon, PhoneIcon, GlobeIcon, RouteIcon, MessageIcon } from './icons.jsx';
+import { PinIcon, PhoneIcon, GlobeIcon, RouteIcon, MessageIcon, ClockIcon } from './icons.jsx';
 import BookingModal from './BookingModal';
 import RatingDisplay from './RatingDisplay';
 import BookingSuccess from './BookingSuccess';
@@ -42,7 +42,7 @@ function ClaimModal({ salon, onClose, onClaim }) {
         exit={{ scale: 0.9, opacity: 0 }}
         onClick={e => e.stopPropagation()}
       >
-        <div style={SM.icon}>🏪</div>
+        <div style={SM.icon}><ClockIcon size={24} color={COLOR.gold} /></div>
         <h3 style={SM.title}>Claim This Listing</h3>
         <p style={SM.body}>
           Are you the owner of <strong style={{ color: COLOR.gold }}>{salon.name}</strong>?
@@ -90,7 +90,7 @@ function ScheduleLoginPrompt({ onClose, onLogin }) {
         exit={{ scale: 0.9, opacity: 0 }}
         onClick={e => e.stopPropagation()}
       >
-        <div style={SM.icon}>✂️</div>
+        <div style={SM.icon}><ClockIcon size={24} color={COLOR.gold} /></div>
         <h3 style={SM.title}>Schedule Your Haircut</h3>
         <p style={SM.body}>
           Create a free account to book appointments, set reminders, and get exclusive AURA member pricing.
@@ -301,7 +301,7 @@ const SalonCard = forwardRef(function SalonCard({
               <PinIcon size={11} />
               {/* Address parts are translated; name itself stays */}
               <span style={S.metaText}>
-                <DynamicTranslate text={addr} />
+                <DynamicTranslate text={addr.replace(/, Hyderabad/g, '')} />
               </span>
               {distLabel && (
                 <span style={S.distPill}>
@@ -324,7 +324,7 @@ const SalonCard = forwardRef(function SalonCard({
           <div style={S.aiDrawerContainer}>
             {aiAnalysis ? (
               <div style={S.aiInsightBody}>
-                <p style={S.aiInsightText}>💡 <strong>AI Summary:</strong> {aiAnalysis.summary}</p>
+                <p style={S.aiInsightText}><ClockIcon size={12} color={COLOR.gold} /> <strong>AI Summary:</strong> {aiAnalysis.summary}</p>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'8px'}}>
                   <span style={S.aiPricePill}>Est. Entry Price: {aiAnalysis.estimatedBasePrice || "₹500+"}</span>
                   <button 
@@ -332,11 +332,11 @@ const SalonCard = forwardRef(function SalonCard({
                     style={{...S.aiEnrichBtn, padding: '4px 10px', width: 'auto', fontSize: '0.65rem', margin: 0, height: 'auto'}}
                     title="Ask AI Concierge for follow-up details"
                   >
-                    💬 Ask AI
+                    <MessageIcon size={10} color={COLOR.gold} /> Ask AI
                   </button>
                 </div>
               </div>
-            ) : (
+            ) : hov ? (
               <motion.button 
                 onClick={triggerAiEnrichment} 
                 style={S.aiEnrichBtn} 
@@ -348,7 +348,7 @@ const SalonCard = forwardRef(function SalonCard({
               >
                 {fetchingAi ? 'Synthesizing live profiles... ⟳' : '✦ Tap to parse live AI insights & pricing'}
               </motion.button>
-            )}
+            ) : null}
           </div>
 
           <div style={S.tags}>
@@ -400,9 +400,9 @@ const SalonCard = forwardRef(function SalonCard({
                   onClick={handleSchedule}
                   whileHover={{ filter: 'brightness(1.08)' }}
                   whileTap={{ scale: 0.97 }}
-                  title="Schedule your haircut appointment"
+                  title="Schedule appointment"
                 >
-                  ✂️ <span>{t('card_schedule') || 'Schedule'}</span>
+                  <ClockIcon size={12} color="#1a1410" /> <span>{t('card_schedule') || 'Schedule'}</span>
                 </motion.button>
 
                 <motion.button 
@@ -427,75 +427,74 @@ const SalonCard = forwardRef(function SalonCard({
                 >
                   <RouteIcon size={13} />
                 </motion.button>
-
-                <div style={{position:'relative'}}>
-                  <motion.button 
-                    style={S.iconBtn} 
-                    onClick={() => setShowActionMenu(!showActionMenu)} 
-                    title="More actions"
-                    whileHover={{ borderColor: 'rgba(212,175,55,0.4)', backgroundColor: 'rgba(212,175,55,0.04)' }} 
-                    whileTap={{ scale: 0.94 }}
-                  >
-                    <span style={{fontSize: '1rem', lineHeight: '10px', marginTop: '-4px'}}>⋮</span>
-                  </motion.button>
-                  <AnimatePresence>
-                    {showActionMenu && (
-                      <motion.div 
-                        initial={{opacity:0, y:5, scale:0.95}} 
-                        animate={{opacity:1, y:0, scale:1}} 
-                        exit={{opacity:0, y:5, scale:0.95}} 
-                        style={{position:'absolute', bottom:'120%', right:0, background:'rgba(13,10,19,0.98)', border:'1px solid rgba(212,175,55,0.3)', borderRadius:'8px', padding:'4px', zIndex:100, minWidth:'130px', display:'flex', flexDirection:'column', gap:'2px', boxShadow:'0 8px 24px rgba(0,0,0,0.8)'}}
-                      >
-                        {!salon.listingVerified && (
-                          <button 
-                            style={{ background:'transparent', border:'none', color:'rgba(255,248,220,0.9)', padding:'8px 12px', textAlign:'left', fontSize:'0.75rem', fontFamily:FONT.mono, cursor:'pointer', width:'100%', borderRadius:'4px' }} 
-                            onClick={(e) => { 
-                              e.stopPropagation();
-                              setShowActionMenu(false); 
-                              if(!user) { pushToast('Please log in to claim this listing.', 'warning'); setAuthModalOpen?.(true); return; } 
-                              setShowClaimModal(true); 
-                            }}
-                            onMouseOver={(e)=>e.currentTarget.style.background='rgba(212,175,55,0.1)'}
-                            onMouseOut={(e)=>e.currentTarget.style.background='transparent'}
-                          >
-                            Claim Shop
-                          </button>
-                        )}
-                        <button 
-                          style={{ background:'transparent', border:'none', color:'#ef4444', padding:'8px 12px', textAlign:'left', fontSize:'0.75rem', fontFamily:FONT.mono, cursor:'pointer', width:'100%', borderRadius:'4px' }} 
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            setShowActionMenu(false);
-                            if (!user) return setAuthModalOpen(true);
-                            if (window.confirm("Report this salon for inappropriate content or invalid details?")) {
-                              try {
-                                const res = await fetch(`${API}/api/salons/${salon._id}/report`, {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ user: user._id, reason: 'User Report', details: 'Reported via Salon Card' })
-                                });
-                                const data = await res.json();
-                                if (data.success) {
-                                  alert('Report submitted successfully. Thank you.');
-                                } else {
-                                  alert(data.error || 'Failed to submit report');
-                                }
-                              } catch (err) {
-                                alert('Error submitting report.');
-                              }
-                            }
-                          }}
-                          onMouseOver={(e)=>e.currentTarget.style.background='rgba(239,68,68,0.1)'}
-                          onMouseOut={(e)=>e.currentTarget.style.background='transparent'}
-                        >
-                          Report Shop
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
               </>
             )}
+          </div>
+          <div style={{position:'absolute', top: '10px', right: '10px', zIndex: 200}}>
+            <motion.button 
+              style={S.iconBtn} 
+              onClick={() => setShowActionMenu(!showActionMenu)} 
+              title="More actions"
+              whileHover={{ borderColor: 'rgba(212,175,55,0.4)', backgroundColor: 'rgba(212,175,55,0.04)' }} 
+              whileTap={{ scale: 0.94 }}
+            >
+              <span style={{fontSize: '1rem', lineHeight: '10px', marginTop: '-4px'}}>⋮</span>
+            </motion.button>
+            <AnimatePresence>
+              {showActionMenu && (
+                <motion.div 
+                  initial={{opacity:0, y:-5, scale:0.95}} 
+                  animate={{opacity:1, y:0, scale:1}} 
+                  exit={{opacity:0, y:-5, scale:0.95}} 
+                  style={{position:'absolute', top:'120%', right:0, background:'rgba(13,10,19,0.98)', border:'1px solid rgba(212,175,55,0.3)', borderRadius:'8px', padding:'4px', zIndex:100, minWidth:'130px', display:'flex', flexDirection:'column', gap:'2px', boxShadow:'0 8px 24px rgba(0,0,0,0.8)'}}
+                >
+                  {!salon.listingVerified && (
+                    <button 
+                      style={{ background:'transparent', border:'none', color:'rgba(255,248,220,0.9)', padding:'8px 12px', textAlign:'left', fontSize:'0.75rem', fontFamily:FONT.mono, cursor:'pointer', width:'100%', borderRadius:'4px' }} 
+                      onClick={(e) => { 
+                        e.stopPropagation();
+                        setShowActionMenu(false); 
+                        if(!user) { pushToast('Please log in to claim this listing.', 'warning'); setAuthModalOpen?.(true); return; } 
+                        setShowClaimModal(true); 
+                      }}
+                      onMouseOver={(e)=>e.currentTarget.style.background='rgba(212,175,55,0.1)'}
+                      onMouseOut={(e)=>e.currentTarget.style.background='transparent'}
+                    >
+                      Claim Shop
+                    </button>
+                  )}
+                  <button 
+                    style={{ background:'transparent', border:'none', color:'#ef4444', padding:'8px 12px', textAlign:'left', fontSize:'0.75rem', fontFamily:FONT.mono, cursor:'pointer', width:'100%', borderRadius:'4px' }} 
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      setShowActionMenu(false);
+                      if (!user) return setAuthModalOpen(true);
+                      if (window.confirm("Report this salon for inappropriate content or invalid details?")) {
+                        try {
+                          const res = await fetch(`${API}/api/salons/${salon._id}/report`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ user: user._id, reason: 'User Report', details: 'Reported via Salon Card' })
+                          });
+                          const data = await res.json();
+                          if (data.success) {
+                            alert('Report submitted successfully. Thank you.');
+                          } else {
+                            alert(data.error || 'Failed to submit report');
+                          }
+                        } catch (err) {
+                          alert('Error submitting report.');
+                        }
+                      }
+                    }}
+                    onMouseOver={(e)=>e.currentTarget.style.background='rgba(239,68,68,0.1)'}
+                    onMouseOut={(e)=>e.currentTarget.style.background='transparent'}
+                  >
+                    Report Shop
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </motion.article>

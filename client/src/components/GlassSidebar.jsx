@@ -6,7 +6,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { COLOR, FONT, CATEGORY_FILTERS, GENDER_FILTERS } from '../utils/tokens';
 import DynamicTranslate from './DynamicTranslate';
 
-const PET_COORD_NUMBER = '+91 98765 43210';
+const PET_COORD_NUMBER = import.meta.env.VITE_CONCIERGE_NUMBER || '+91 90000 00000';
 
 export default function GlassSidebar({ collapsed, setCollapsed }) {
   const {

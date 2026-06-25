@@ -507,7 +507,7 @@ function SearchStage({ t, query, results, hubs, busy, setQuery, setResults, onPi
     clearTimeout(debRef.current);
     if (val.length < 2) { setResults([]); return; }
     debRef.current = setTimeout(() => {
-      const isHyd = /hyderabad|secunderabad|cyberabad|telangana/i.test(val);
+      const isHyd = /hyderabad|hyderbad|secunderabad|secundrabad|cyberabad|telangana|hyd/i.test(val);
       const filtered = hubs.filter(h => h.hub.toLowerCase().includes(val.toLowerCase()));
       setResults(filtered);
 
@@ -534,7 +534,7 @@ function SearchStage({ t, query, results, hubs, busy, setQuery, setResults, onPi
             {errorMsg}
           </p>
           {errorMsg.includes('GPS') && (
-            <button style={{...S.ctaSecondary, padding: '0.5rem', fontSize: '0.65rem', borderColor: 'rgba(212,175,55,0.4)'}} onClick={onTryLocation}>
+            <button style={{...S.ctaSecondary, padding: '0.6rem', fontSize: '0.75rem', borderColor: 'rgba(212,175,55,0.4)'}} onClick={onTryLocation}>
               📍 Find nearby places
             </button>
           )}
@@ -575,7 +575,7 @@ const S = {
   ctaStack:   {display:'flex',flexDirection:'column',gap:'0.7rem'},
   ctaPrimary: {width:'100%',padding:'clamp(0.75rem,3vw,0.95rem)',background:'linear-gradient(135deg,#FFF2A8,#D4AF37)',border:'none',borderRadius:10,fontFamily:FONT.mono,fontSize:'clamp(0.48rem,2vw,0.56rem)',letterSpacing:'0.18em',fontWeight:700,color:'#000',cursor:'pointer'},
   ctaSecondary:{width:'100%',padding:'clamp(0.7rem,3vw,0.9rem)',background:'transparent',border:'1px solid rgba(212,175,55,0.28)',borderRadius:10,fontFamily:FONT.mono,fontSize:'clamp(0.46rem,2vw,0.54rem)',letterSpacing:'0.16em',color:'rgba(212,175,55,0.85)',cursor:'pointer',transition:'border-color 0.2s'},
-  ctaSkip:    {background:'none',border:'none',fontFamily:FONT.mono,fontSize:'clamp(0.4rem,1.8vw,0.46rem)',letterSpacing:'0.12em',color:'rgba(255,248,220,0.28)',cursor:'pointer',textAlign:'center',padding:'0.4rem',transition:'color 0.2s'},
+  ctaSkip:    {background:'none',border:'none',fontFamily:FONT.mono,fontSize:'clamp(0.55rem,2.2vw,0.7rem)',letterSpacing:'0.12em',color:'rgba(255,248,220,0.4)',cursor:'pointer',textAlign:'center',padding:'0.4rem',transition:'color 0.2s'},
   ring:       {width:44,height:44,border:'2px solid rgba(212,175,55,0.15)',borderTop:'2px solid #D4AF37',borderRadius:'50%'},
   locLabel:   {fontFamily:FONT.display,fontSize:'clamp(1rem,3vw,1.2rem)',color:COLOR.textPrimary},
   locSub:     {fontFamily:FONT.mono,fontSize:'0.44rem',letterSpacing:'0.1em',color:COLOR.textMuted},

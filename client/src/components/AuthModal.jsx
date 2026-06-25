@@ -47,11 +47,11 @@ export default function AuthModal({ onClose, onAuthed }) {
       <div style={S.back} onClick={onClose} />
       <motion.div style={S.box} initial={{ scale: 0.92, opacity: 0, y: 24 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.92, opacity: 0 }} transition={{ type: 'spring', stiffness: 200, damping: 22 }}>
         <button style={S.close} onClick={onClose}>✕</button>
-        <div style={{ textAlign: 'center', marginBottom: '1.3rem' }}>
-          <div style={{ fontFamily: FONT.display, fontSize: '1.5rem', fontWeight: 300, color: COLOR.textPrimary }}>
-            {mode === 'signup' ? 'Create your account' : 'Welcome back'}
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{ fontFamily: FONT.display, fontSize: '2.2rem', fontWeight: 300, color: COLOR.textPrimary }}>
+            {mode === 'signup' ? 'Create Account' : 'Welcome Back'}
           </div>
-          <p style={{ fontFamily: FONT.mono, fontSize: '0.44rem', letterSpacing: '0.15em', color: COLOR.textMuted, marginTop: '0.3rem' }}>
+          <p style={{ fontFamily: FONT.mono, fontSize: '0.5rem', letterSpacing: '0.15em', color: COLOR.textMuted, marginTop: '0.6rem' }}>
             {mode === 'signup' ? 'Save bookings and ratings to your account' : 'Log in to see your booking history'}
           </p>
         </div>
@@ -64,7 +64,7 @@ export default function AuthModal({ onClose, onAuthed }) {
             <Field label="Email"><input style={S.inp} type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="you@email.com" /></Field>
             <Field label="Password"><input style={S.inp} type="password" value={form.password} onChange={e => set('password', e.target.value)} placeholder={mode === 'signup' ? 'At least 8 characters' : '••••••••'} /></Field>
             {mode === 'signup' && (
-              <Field label="Phone (optional)"><input style={S.inp} type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+91 98765 43210" /></Field>
+              <Field label="Phone (optional)"><input style={S.inp} type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+91 90000 00000" /></Field>
             )}
           </motion.div>
         </AnimatePresence>
@@ -95,13 +95,13 @@ function Field({ label, children }) {
 }
 
 const S = {
-  ov:  { position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '10vh 1rem 4rem 1rem', overflowY: 'auto' },
+  ov:  { position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', overflowY: 'auto' },
   back:{ position: 'fixed', inset: 0, background: 'rgba(3,2,4,0.88)', backdropFilter: 'blur(12px)' },
-  box: { position: 'relative', width: '100%', maxWidth: 400, background: 'rgba(13,10,19,0.97)', border: '1px solid rgba(212,175,55,0.22)', borderRadius: 16, padding: 'clamp(1.2rem,5vw,1.8rem)', boxShadow: '0 30px 80px rgba(0,0,0,0.85)' },
-  close:{ position: 'absolute', top: '0.9rem', right: '0.9rem', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,248,220,0.3)', cursor: 'pointer', background: 'none', border: 'none', fontSize: '0.75rem' },
-  inp: { width: '100%', padding: '0.56rem 0.82rem', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, outline: 'none', fontFamily: FONT.body, fontSize: '0.82rem', color: COLOR.textPrimary, boxSizing: 'border-box' },
-  err: { color: '#EF5350', fontFamily: FONT.mono, fontSize: '0.4rem', marginBottom: '0.7rem' },
-  submit: { width: '100%', padding: '0.78rem', background: 'linear-gradient(135deg,#FFF2A8,#D4AF37)', border: 'none', borderRadius: 7, fontFamily: FONT.mono, fontSize: '0.5rem', letterSpacing: '0.2em', fontWeight: 700, color: '#000', cursor: 'pointer', marginTop: '0.4rem' },
+  box: { position: 'relative', width: '100%', maxWidth: 520, background: 'rgba(13,10,19,0.97)', border: '1px solid rgba(212,175,55,0.22)', borderRadius: 20, padding: 'clamp(2rem,6vw,3rem)', boxShadow: '0 40px 100px rgba(0,0,0,0.9)' },
+  close:{ position: 'absolute', top: '1.2rem', right: '1.2rem', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,248,220,0.4)', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', borderRadius: '50%', border: 'none', fontSize: '0.85rem' },
+  inp: { width: '100%', padding: '0.85rem 1.1rem', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, outline: 'none', fontFamily: FONT.body, fontSize: '0.9rem', color: COLOR.textPrimary, boxSizing: 'border-box', transition: 'border-color 0.2s' },
+  err: { color: '#EF5350', fontFamily: FONT.mono, fontSize: '0.45rem', marginBottom: '0.8rem', textAlign: 'center' },
+  submit: { width: '100%', padding: '0.95rem', background: 'linear-gradient(135deg,#FFF2A8,#D4AF37)', border: 'none', borderRadius: 8, fontFamily: FONT.mono, fontSize: '0.6rem', letterSpacing: '0.2em', fontWeight: 700, color: '#000', cursor: 'pointer', marginTop: '1rem', boxShadow: '0 8px 24px rgba(212,175,55,0.2)' },
   switchBtn: { display: 'block', width: '100%', textAlign: 'center', background: 'none', border: 'none', fontFamily: FONT.mono, fontSize: '0.42rem', letterSpacing: '0.08em', color: COLOR.gold, cursor: 'pointer', marginTop: '0.9rem', padding: '0.4rem' },
   skipNote: { textAlign: 'center', fontFamily: FONT.mono, fontSize: '0.38rem', letterSpacing: '0.05em', color: COLOR.textGhost, marginTop: '0.7rem', lineHeight: 1.6 },
 };
