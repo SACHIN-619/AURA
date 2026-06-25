@@ -71,21 +71,22 @@ export function safeCoords(salon) {
 }
 
 export const AuraProvider = ({children}) => {
-  const [allHubs,       setAllHubs]       = useState([]);
-  const [activeHub,     setActiveHub]     = useState('');
-  const [salons,        setSalons]        = useState([]);
-  const [loading,       setLoading]       = useState(false);
-  const [syncing,       setSyncing]       = useState(false);
-  const [error,         setError]         = useState(null);
-  const [activeFilters, setActiveFilters] = useState(new Set()); 
-  const [genderFilter,  setGenderFilter]  = useState('any');     
-  const [stats,         setStats]         = useState({total:0});
-  const [toast,         setToast]         = useState(null);
-  const [page,          setPage]          = useState(1);
-  const [userLocation,  setUserLocation]  = useState(null);
-  const [aiReply,       setAiReply]       = useState('');
-  const [aiMatchIds,    setAiMatchIds]    = useState([]);
-  const [onboarded,     setOnboarded]     = useState(false);
+  const [allHubs,        setAllHubs]        = useState([]);
+  const [activeHub,      setActiveHub]      = useState('');
+  const [activeCategory, setActiveCategory] = useState(null);  // ← was missing, caused black screen
+  const [salons,         setSalons]         = useState([]);
+  const [loading,        setLoading]        = useState(false);
+  const [syncing,        setSyncing]        = useState(false);
+  const [error,          setError]          = useState(null);
+  const [activeFilters,  setActiveFilters]  = useState(new Set());
+  const [genderFilter,   setGenderFilter]   = useState('any');
+  const [stats,          setStats]          = useState({total:0});
+  const [toast,          setToast]          = useState(null);
+  const [page,           setPage]           = useState(1);
+  const [userLocation,   setUserLocation]   = useState(null);
+  const [aiReply,        setAiReply]        = useState('');
+  const [aiMatchIds,     setAiMatchIds]     = useState([]);
+  const [onboarded,      setOnboarded]      = useState(false);
   const toastTimer = useRef(null);
 
   const [user, setUser] = useState(null); 
@@ -139,27 +140,34 @@ export const AuraProvider = ({children}) => {
     };
   },[allHubs]);
 
-  const loadHubList = useCallback(async()=>{
+  const loadHubList = useCallback(async () => {
     try {
-      const {data} = await axios.get(`${API}/api/salons/hubs`,{timeout:8000});
-      if (data.data?.length) { 
-        const mapped = data.data.map(h => ({
-          hub: h.hub || '',
-          count: h.count || 0,
-          lat: parseFloat(h.lat) || 17.3850,
-          lon: parseFloat(h.lon) || 78.4867
-        }));
-        setAllHubs(mapped); 
-        return mapped; 
+      const { data } = await axios.get(`${API}/api/salons/hubs`, { timeout: 8000 });
+      // Controller returns { success, data: [{hub, count, lat, lon}] }
+      const rawList = data.data || data.hubs || [];
+      const list = Array.isArray(rawList) ? rawList : [];
+      if (list.length) {
+        const mapped = list.map(h => ({
+          hub:   typeof h === 'string' ? h : (h.hub || ''),
+          count: h.count  || 0,
+          lat:   parseFloat(h.lat)  || 17.3850,
+          lon:   parseFloat(h.lon)  || 78.4867,
+        })).filter(h => h.hub);
+        setAllHubs(mapped);
+        return mapped;
       }
       throw new Error('empty');
     } catch {
-      const fallback = await fetchDynamicFallbackHubs();
-      const list = fallback || [];
+      // Fallback: read VITE env hubs so the app isn't dead without a DB
+      const envHubs = (import.meta.env.VITE_ACTIVE_HUBS || '').split(',').map(h => h.trim()).filter(Boolean);
+      const osmFallback = await fetchDynamicFallbackHubs();
+      const list = envHubs.length
+        ? envHubs.map(hub => ({ hub, count: 0, lat: 17.3850, lon: 78.4867 }))
+        : (osmFallback || []);
       setAllHubs(list);
       return list;
     }
-  },[]);
+  }, []);
 
   // Self-trigger fallback lists hydration immediately upon mount configuration parameters
   useEffect(() => {
@@ -245,16 +253,17 @@ export const AuraProvider = ({children}) => {
 
   return (
     <AuraContext.Provider value={{
-      allHubs,activeHub,salons:pageSalons,allFilteredSalons:filtered,
-      loading,syncing,error,activeFilters,toggleFilter,genderFilter,setGenderFilter,stats,
-      syncHub,aiSearch,pushToast,toast,
-      page,setPage,totalPages,
-      userLocation,setUserLocation,
-      aiReply,aiMatchIds,
-      onboarded,setOnboarded,
-      loadHubList,resolveNearestHub,
+      allHubs, activeHub, activeCategory, setActiveCategory,
+      salons: pageSalons, allFilteredSalons: filtered,
+      loading, syncing, error, activeFilters, toggleFilter, genderFilter, setGenderFilter, stats,
+      syncHub, aiSearch, pushToast, toast,
+      page, setPage, totalPages,
+      userLocation, setUserLocation,
+      aiReply, aiMatchIds,
+      onboarded, setOnboarded,
+      loadHubList, resolveNearestHub,
       trackEvent,
-      user, setUser, authModalOpen, setAuthModalOpen, login, logout 
+      user, setUser, authModalOpen, setAuthModalOpen, login, logout
     }}>
       {children}
     </AuraContext.Provider>

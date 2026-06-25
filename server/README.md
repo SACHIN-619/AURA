@@ -1,5 +1,10 @@
 # AURA Backend — Express + MongoDB
 
+## Live Deployment
+
+The backend is deployed on Render: [https://aura-jdlt.onrender.com](https://aura-jdlt.onrender.com)
+The database is hosted on a MongoDB Atlas Cloud Instance.
+
 ## Setup
 ```bash
 cp ../.env.example ../.env  # fill values
@@ -8,6 +13,7 @@ npm run dev      # nodemon, port 5000
 npm run seed     # populate all 8 hubs from OSM
 npm test         # 93 smoke tests
 ```
+
 
 ## Environment variables
 | Var | Required | Notes |
