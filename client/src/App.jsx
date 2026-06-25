@@ -178,7 +178,7 @@ function AppShell({ showApp }) {
   const [forceOnboarding, setForceOnboarding] = useState(false);
   const showOnboarding = (showApp && !onboarded && !onbDone) || forceOnboarding;
   const [showInactivity, setShowInactivity] = useState(false);
-  const { user, setAuthModalOpen } = useAura();
+  const { user, setUser, authModalOpen, setAuthModalOpen } = useAura();
 
   // Admin redirect
   useEffect(() => {
