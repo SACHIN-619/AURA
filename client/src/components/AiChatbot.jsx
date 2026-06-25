@@ -24,6 +24,22 @@ export default function AiChatbot({ currentHub }) {
     }
   }, [messages, isLoading]);
 
+  useEffect(() => {
+    const handleOpenChat = (e) => {
+      setIsOpen(true);
+      if (e.detail?.query) {
+        setInput(e.detail.query);
+        // Focus the input if possible
+        setTimeout(() => {
+          const inputEl = document.querySelector('input[placeholder="Message AURA..."]');
+          if (inputEl) inputEl.focus();
+        }, 100);
+      }
+    };
+    window.addEventListener('openAuraChat', handleOpenChat);
+    return () => window.removeEventListener('openAuraChat', handleOpenChat);
+  }, []);
+
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;

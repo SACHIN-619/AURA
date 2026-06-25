@@ -343,7 +343,16 @@ const SalonCard = forwardRef(function SalonCard({
             {aiAnalysis ? (
               <div style={S.aiInsightBody}>
                 <p style={S.aiInsightText}>💡 <strong>AI Summary:</strong> {aiAnalysis.summary}</p>
-                <span style={S.aiPricePill}>Est. Entry Price: {aiAnalysis.estimatedBasePrice || "₹500+"}</span>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'8px'}}>
+                  <span style={S.aiPricePill}>Est. Entry Price: {aiAnalysis.estimatedBasePrice || "₹500+"}</span>
+                  <button 
+                    onClick={() => window.dispatchEvent(new CustomEvent('openAuraChat', { detail: { query: `Tell me more about ${name} in ${hub}` } }))}
+                    style={{...S.aiEnrichBtn, padding: '4px 10px', width: 'auto', fontSize: '0.65rem', margin: 0, height: 'auto'}}
+                    title="Ask AI Concierge for follow-up details"
+                  >
+                    💬 Ask AI
+                  </button>
+                </div>
               </div>
             ) : (
               <motion.button 

@@ -69,6 +69,9 @@ npm run seed             # from root — syncs all 8 Hyderabad hubs from OSM
 - **ACTIVE_MARKETPLACE_HUBS**: Comma-separated list of active hubs: `Jubilee Hills,Banjara Hills,Hitech City,Gachibowli,Madhapur,Kondapur,Kukatpally,Ameerpet`
 - **GEMINI_API_KEY**: Google Gemini model API key (primary AI concierge engine).
 - **GROQ_API_KEY / HUGGINGFACE_API_KEY / KRUTRIM_API_KEY**: API keys for our 4-tier AI provider failover cascade.
+- **CLOUDINARY_CLOUD_NAME**: Cloudinary account cloud name (for AuraMirror image uploads).
+- **CLOUDINARY_API_KEY**: Cloudinary API key.
+- **CLOUDINARY_API_SECRET**: Cloudinary API secret.
 
 For detailed setup, see [client/README.md](file:///c:/Users/Sachin/Desktop/files/summer/aura-hyderabad-marketplace-final/aura-marketplace/client/README.md) and [server/README.md](file:///c:/Users/Sachin/Desktop/files/summer/aura-hyderabad-marketplace-final/aura-marketplace/server/README.md), and refer to `.notes/PENDING_FRONTEND_IDEAS.md` for scoped out concepts.
 
