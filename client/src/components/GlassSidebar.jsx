@@ -113,7 +113,7 @@ export default function GlassSidebar({ collapsed, setCollapsed }) {
 
   const sidebarContent = (
     <aside
-      className="sidebar-desktop"
+      className={`sidebar-desktop ${mobileOpen ? 'mobile-open' : ''}`}
       style={{
         ...S.sidebar,
         ...(mobileOpen ? { transform: 'translateX(0)' } : {}),

@@ -135,6 +135,7 @@ const SalonCard = forwardRef(function SalonCard({
   const [isClaiming, setIsClaiming] = useState(false);
   const [showSchedulePrompt, setShowSchedulePrompt] = useState(false);
   const [showMapEmbed, setShowMapEmbed] = useState(false);
+  const [showActionMenu, setShowActionMenu] = useState(false);
   const claimTimerRef = useRef(null);
 
   useEffect(() => {
@@ -278,29 +279,10 @@ const SalonCard = forwardRef(function SalonCard({
             </button>
           ) : (
             <div style={S.claimBadgeCluster}>
-              {salon.listingVerified ? (
-                // Verified — show gold verified badge (no click)
+              {salon.listingVerified && (
                 <div style={{ ...S.claimIconBadge, borderColor: COLOR.gold, cursor: 'default' }} title="Verified Listing">
                   ✦
                 </div>
-              ) : (
-                // Not verified — show claim button (requires login)
-                <button
-                  style={{ ...S.claimIconBadge, color: '#FFF2A8', borderColor: 'rgba(212,175,55,0.3)' }}
-                  onClick={e => {
-                    e.stopPropagation();
-                    if (!user) {
-                      pushToast('Please log in to claim this listing.', 'warning');
-                      setAuthModalOpen?.(true);
-                      return;
-                    }
-                    setShowClaimModal(true);
-                  }}
-                  disabled={isClaiming}
-                  title="Claim this listing"
-                >
-                  {isClaiming ? '⟳' : '?'}
-                </button>
               )}
             </div>
           )}
@@ -445,34 +427,73 @@ const SalonCard = forwardRef(function SalonCard({
                 >
                   <RouteIcon size={13} />
                 </motion.button>
-                <motion.button 
-                  style={{...S.iconBtn, color: '#ef4444', borderColor: 'rgba(239,68,68,0.2)'}} 
-                  onClick={async () => {
-                    if (!user) return setAuthModalOpen(true);
-                    if (window.confirm("Report this salon for inappropriate content or invalid details?")) {
-                      try {
-                        const res = await fetch(`${API}/api/salons/${salon._id}/report`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ user: user._id, reason: 'User Report', details: 'Reported via Salon Card' })
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                          alert('Report submitted successfully. Thank you.');
-                        } else {
-                          alert(data.error || 'Failed to submit report');
-                        }
-                      } catch (err) {
-                        alert('Error submitting report.');
-                      }
-                    }
-                  }} 
-                  title="Report this salon"
-                  whileHover={{ borderColor: 'rgba(239,68,68,0.4)', backgroundColor: 'rgba(239,68,68,0.04)' }} 
-                  whileTap={{ scale: 0.94 }}
-                >
-                  <span style={{fontSize: '0.75rem'}}>⚠️</span>
-                </motion.button>
+
+                <div style={{position:'relative'}}>
+                  <motion.button 
+                    style={S.iconBtn} 
+                    onClick={() => setShowActionMenu(!showActionMenu)} 
+                    title="More actions"
+                    whileHover={{ borderColor: 'rgba(212,175,55,0.4)', backgroundColor: 'rgba(212,175,55,0.04)' }} 
+                    whileTap={{ scale: 0.94 }}
+                  >
+                    <span style={{fontSize: '1rem', lineHeight: '10px', marginTop: '-4px'}}>⋮</span>
+                  </motion.button>
+                  <AnimatePresence>
+                    {showActionMenu && (
+                      <motion.div 
+                        initial={{opacity:0, y:5, scale:0.95}} 
+                        animate={{opacity:1, y:0, scale:1}} 
+                        exit={{opacity:0, y:5, scale:0.95}} 
+                        style={{position:'absolute', bottom:'120%', right:0, background:'rgba(13,10,19,0.98)', border:'1px solid rgba(212,175,55,0.3)', borderRadius:'8px', padding:'4px', zIndex:100, minWidth:'130px', display:'flex', flexDirection:'column', gap:'2px', boxShadow:'0 8px 24px rgba(0,0,0,0.8)'}}
+                      >
+                        {!salon.listingVerified && (
+                          <button 
+                            style={{ background:'transparent', border:'none', color:'rgba(255,248,220,0.9)', padding:'8px 12px', textAlign:'left', fontSize:'0.75rem', fontFamily:FONT.mono, cursor:'pointer', width:'100%', borderRadius:'4px' }} 
+                            onClick={(e) => { 
+                              e.stopPropagation();
+                              setShowActionMenu(false); 
+                              if(!user) { pushToast('Please log in to claim this listing.', 'warning'); setAuthModalOpen?.(true); return; } 
+                              setShowClaimModal(true); 
+                            }}
+                            onMouseOver={(e)=>e.currentTarget.style.background='rgba(212,175,55,0.1)'}
+                            onMouseOut={(e)=>e.currentTarget.style.background='transparent'}
+                          >
+                            Claim Shop
+                          </button>
+                        )}
+                        <button 
+                          style={{ background:'transparent', border:'none', color:'#ef4444', padding:'8px 12px', textAlign:'left', fontSize:'0.75rem', fontFamily:FONT.mono, cursor:'pointer', width:'100%', borderRadius:'4px' }} 
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            setShowActionMenu(false);
+                            if (!user) return setAuthModalOpen(true);
+                            if (window.confirm("Report this salon for inappropriate content or invalid details?")) {
+                              try {
+                                const res = await fetch(`${API}/api/salons/${salon._id}/report`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ user: user._id, reason: 'User Report', details: 'Reported via Salon Card' })
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                  alert('Report submitted successfully. Thank you.');
+                                } else {
+                                  alert(data.error || 'Failed to submit report');
+                                }
+                              } catch (err) {
+                                alert('Error submitting report.');
+                              }
+                            }
+                          }}
+                          onMouseOver={(e)=>e.currentTarget.style.background='rgba(239,68,68,0.1)'}
+                          onMouseOut={(e)=>e.currentTarget.style.background='transparent'}
+                        >
+                          Report Shop
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </>
             )}
           </div>

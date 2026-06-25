@@ -2,7 +2,7 @@
 // Flow: gender context (optional, skippable) → upload → crop → analyze → result
 // No hardcoded style list anywhere — every recommendation is generated live
 // by the AI based on the actual photo and the gender context given.
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { COLOR, FONT } from '../utils/tokens';
 import { API, useAura } from '../context/AuraContext';
@@ -10,7 +10,7 @@ import { API, useAura } from '../context/AuraContext';
 const GENDER_OPTIONS = ['Woman', 'Man', 'Non-binary', 'Prefer not to say'];
 
 export default function AuraMirror({onClose,onBook}) {
-  const { trackEvent, user, setAuthModalOpen } = useAura();
+  const { trackEvent, user, setAuthModalOpen, pushToast } = useAura();
   const [stage,setStage]=useState('gender'); // gender | upload | crop | analyzing | result | error
   const [gender,setGender]=useState(null);
   const [rawImage,setRawImage]=useState(null);   // original uploaded image (data URL)
@@ -22,13 +22,26 @@ export default function AuraMirror({onClose,onBook}) {
   const imgRef=useRef();
   const cropBoxRef=useRef();
 
+  useEffect(() => {
+    if (!user) {
+      pushToast('Please log in to use Aura Mirror', 'info');
+      setAuthModalOpen(true);
+    }
+  }, [user]);
+
   // Simple drag-to-reposition crop state — keeps a square crop window,
   // user drags the image underneath it to choose what's centered.
   const [cropOffset,setCropOffset]=useState({x:0,y:0});
   const dragState=useRef(null);
 
-  const chooseGender=(g)=>{ setGender(g); setStage('upload'); };
-  const skipGender=()=>{ setGender(null); setStage('upload'); };
+  const chooseGender=(g)=>{ 
+    if(!user) { setAuthModalOpen(true); return; }
+    setGender(g); setStage('upload'); 
+  };
+  const skipGender=()=>{ 
+    if(!user) { setAuthModalOpen(true); return; }
+    setGender(null); setStage('upload'); 
+  };
 
   const onFile=(e)=>{
     const file=e.target.files?.[0];
@@ -154,7 +167,7 @@ export default function AuraMirror({onClose,onBook}) {
             </motion.div>
           )}
 
-          {user && stage==='upload' && (
+          {stage==='upload' && (
             <motion.div key="up" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
               <div style={{display:'flex',gap:'0.5rem',marginBottom:'1rem'}}>
                 <div style={{...S.drop, flex:1, padding:'1.5rem 0.5rem'}} onClick={()=>fileRef.current?.click()}>

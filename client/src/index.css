@@ -89,7 +89,6 @@ select option{background:#0d0a13;}
 /* TopBar responsive — on narrow phones, allow wrapping */
 @media(max-width:600px){
   .main-content{ padding-top: 0 !important; margin-left: 0 !important; }
-  .sidebar-desktop{ display: none !important; }
 }
 
 /* Chatbot loading dots animation */

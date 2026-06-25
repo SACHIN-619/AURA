@@ -488,6 +488,7 @@ export default function LocationOnboarding({ onComplete }) {
               onPick={pickHub}
               onBack={() => setStage('pip')}
               onSkip={skip}
+              onTryLocation={tryLocation}
             />
           )}
         </AnimatePresence>
@@ -496,17 +497,28 @@ export default function LocationOnboarding({ onComplete }) {
   );
 }
 
-function SearchStage({ t, query, results, hubs, busy, setQuery, setResults, onPick, onBack, onSkip }) {
+function SearchStage({ t, query, results, hubs, busy, setQuery, setResults, onPick, onBack, onSkip, onTryLocation }) {
   const debRef = useRef(null);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleSearch = (val) => {
     setQuery(val);
+    setErrorMsg('');
     clearTimeout(debRef.current);
     if (val.length < 2) { setResults([]); return; }
     debRef.current = setTimeout(() => {
+      const isHyd = /hyderabad|secunderabad|cyberabad|telangana/i.test(val);
       const filtered = hubs.filter(h => h.hub.toLowerCase().includes(val.toLowerCase()));
       setResults(filtered);
-    }, 250);
+
+      if (filtered.length === 0 && val.length > 3) {
+        if (!isHyd) {
+          setErrorMsg("We currently only serve the luxury market in Hyderabad. We'll be expanding soon!");
+        } else {
+          setErrorMsg("We couldn't find a direct match. Try searching a nearby area or use GPS.");
+        }
+      }
+    }, 400);
   };
 
   return (
@@ -515,11 +527,28 @@ function SearchStage({ t, query, results, hubs, busy, setQuery, setResults, onPi
         <span style={S.sIcon}>{busy ? '⟳' : '🔎'}</span>
         <input style={S.sInput} value={query} onChange={(e) => handleSearch(e.target.value)} placeholder={t('onboard_search_placeholder')} autoFocus />
       </div>
-      <div style={S.hubGrid}>
-        {(results.length > 0 ? results : hubs).map((h, i) => (
-          <button key={i} style={S.hubChip} onClick={() => onPick(h.hub)}>{h.hub}</button>
-        ))}
-      </div>
+      
+      {errorMsg && (
+        <div style={{ padding: '0.8rem', background: 'rgba(239,83,80,0.1)', border: '1px solid rgba(239,83,80,0.3)', borderRadius: 8, marginBottom: '1rem', textAlign: 'center' }}>
+          <p style={{ fontFamily: FONT.body, fontSize: '0.75rem', color: '#EF5350', marginBottom: errorMsg.includes('GPS') ? '0.6rem' : 0 }}>
+            {errorMsg}
+          </p>
+          {errorMsg.includes('GPS') && (
+            <button style={{...S.ctaSecondary, padding: '0.5rem', fontSize: '0.65rem', borderColor: 'rgba(212,175,55,0.4)'}} onClick={onTryLocation}>
+              📍 Find nearby places
+            </button>
+          )}
+        </div>
+      )}
+
+      {!errorMsg && (
+        <div style={S.hubGrid}>
+          {(results.length > 0 ? results : hubs).map((h, i) => (
+            <button key={i} style={S.hubChip} onClick={() => onPick(h.hub)}>{h.hub}</button>
+          ))}
+        </div>
+      )}
+
       <div style={{display:'flex',gap:'0.8rem',marginTop:'1rem'}}>
         <button style={S.ctaSkip} onClick={onBack}>{t('onboard_back')}</button>
         <button style={S.ctaSkip} onClick={onSkip}>{t('onboard_skip')} →</button>

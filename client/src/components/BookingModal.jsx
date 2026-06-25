@@ -250,25 +250,25 @@ export default function BookingModal({ salon, onClose, onSuccess }) {
 
 function Field({ label, err, children }) {
   return (
-    <div style={{ marginBottom: '0.88rem', flex: 1 }}>
-      <label style={{ display: 'block', fontFamily: FONT.mono, fontSize: '0.43rem', letterSpacing: '0.17em', color: COLOR.textMuted, marginBottom: '0.36rem' }}>{label}</label>
+    <div style={{ marginBottom: '0.88rem', flex: 1, minWidth: '100%' }}>
+      <label style={{ display: 'block', fontFamily: FONT.mono, fontSize: '0.65rem', letterSpacing: '0.1em', color: COLOR.textMuted, marginBottom: '0.36rem' }}>{label}</label>
       {children}
-      {err && <p style={{ fontFamily: FONT.mono, fontSize: '0.39rem', color: '#EF5350', marginTop: '0.22rem' }}>{err}</p>}
+      {err && <p style={{ fontFamily: FONT.mono, fontSize: '0.6rem', color: '#EF5350', marginTop: '0.22rem' }}>{err}</p>}
     </div>
   );
 }
 
 const S = {
-  ov: { position: 'fixed', inset: 0, zIndex: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' },
+  ov: { position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' },
   back: { position: 'absolute', inset: 0, background: 'rgba(3,2,4,0.88)', backdropFilter: 'blur(12px)' },
-  box: { position: 'relative', width: '100%', maxWidth: 480, background: 'rgba(13,10,19,0.97)', border: '1px solid rgba(212,175,55,0.22)', borderRadius: 16, padding: 'clamp(1.2rem,5vw,2rem)', boxShadow: '0 30px 80px rgba(0,0,0,0.85)', maxHeight: '92vh', overflowY: 'auto' },
-  close: { position: 'absolute', top: '0.9rem', right: '0.9rem', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,248,220,0.3)', cursor: 'pointer', background: 'none', border: 'none', fontSize: '0.75rem' },
-  inp: { width: '100%', padding: '0.56rem 0.82rem', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, outline: 'none', fontFamily: FONT.body, fontSize: '0.82rem', color: COLOR.textPrimary, transition: 'border-color 0.2s', boxSizing: 'border-box' },
+  box: { position: 'relative', width: '100%', maxWidth: 480, background: 'rgba(13,0,19,0.97)', border: '1px solid rgba(212,175,55,0.22)', borderRadius: 16, padding: 'clamp(1.2rem,5vw,2rem)', boxShadow: '0 30px 80px rgba(0,0,0,0.85)', maxHeight: '92vh', overflowY: 'auto' },
+  close: { position: 'absolute', top: '0.9rem', right: '0.9rem', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,248,220,0.6)', cursor: 'pointer', background: 'none', border: 'none', fontSize: '1.2rem' },
+  inp: { width: '100%', padding: '0.6rem 0.82rem', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, outline: 'none', fontFamily: FONT.body, fontSize: '1rem', color: COLOR.textPrimary, transition: 'border-color 0.2s', boxSizing: 'border-box' },
   inpErr: { borderColor: 'rgba(239,83,80,0.5)' },
-  next: { flex: 1, padding: '0.76rem', background: 'linear-gradient(135deg,#FFF2A8,#D4AF37)', border: 'none', borderRadius: 7, fontFamily: FONT.mono, fontSize: '0.5rem', letterSpacing: '0.2em', fontWeight: 700, color: '#000', cursor: 'pointer', width: '100%' },
-  back2: { flex: 0, padding: '0.76rem 1.1rem', background: 'transparent', border: '1px solid rgba(212,175,55,0.2)', borderRadius: 7, fontFamily: FONT.mono, fontSize: '0.47rem', letterSpacing: '0.14em', color: COLOR.textMuted, cursor: 'pointer' },
-  modeTab: { padding: '0.45rem 0.9rem', background: 'transparent', border: '1px solid rgba(212,175,55,0.18)', borderRadius: 20, fontFamily: FONT.mono, fontSize: '0.44rem', letterSpacing: '0.1em', color: COLOR.textMuted, cursor: 'pointer' },
-  modeTabActive: { borderColor: 'rgba(212,175,55,0.5)', color: COLOR.gold, background: 'rgba(212,175,55,0.06)' },
-  webLink: { display: 'block', textAlign: 'center', padding: '0.5rem', marginBottom: '1rem', fontFamily: FONT.mono, fontSize: '0.44rem', letterSpacing: '0.1em', color: COLOR.gold, border: '1px solid rgba(212,175,55,0.18)', borderRadius: 6 },
-  waBtn: { width: '100%', padding: '0.85rem', marginTop: '0.5rem', background: 'linear-gradient(135deg,#25D366,#1DA851)', border: 'none', borderRadius: 8, fontFamily: FONT.mono, fontSize: '0.5rem', letterSpacing: '0.18em', fontWeight: 700, color: '#fff', cursor: 'pointer' },
+  next: { flex: 1, padding: '0.8rem', background: 'linear-gradient(135deg,#FFF2A8,#D4AF37)', border: 'none', borderRadius: 7, fontFamily: FONT.mono, fontSize: '0.8rem', letterSpacing: '0.1em', fontWeight: 700, color: '#000', cursor: 'pointer', width: '100%' },
+  back2: { flex: 0, padding: '0.8rem 1.1rem', background: 'transparent', border: '1px solid rgba(212,175,55,0.2)', borderRadius: 7, fontFamily: FONT.mono, fontSize: '0.75rem', letterSpacing: '0.1em', color: COLOR.textMuted, cursor: 'pointer', whiteSpace: 'nowrap' },
+  modeTab: { padding: '0.5rem 0.9rem', background: 'transparent', border: '1px solid rgba(212,175,55,0.18)', borderRadius: 20, fontFamily: FONT.mono, fontSize: '0.65rem', letterSpacing: '0.1em', color: COLOR.textMuted, cursor: 'pointer' },
+  modeTabActive: { background: 'rgba(212,175,55,0.1)', borderColor: 'rgba(212,175,55,0.4)', color: COLOR.gold },
+  webLink: { display: 'block', textAlign: 'center', padding: '0.5rem', marginBottom: '1rem', fontFamily: FONT.mono, fontSize: '0.6rem', letterSpacing: '0.1em', color: COLOR.gold, border: '1px solid rgba(212,175,55,0.18)', borderRadius: 6 },
+  waBtn: { width: '100%', padding: '0.85rem', marginTop: '0.5rem', background: 'linear-gradient(135deg,#25D366,#1DA851)', border: 'none', borderRadius: 8, fontFamily: FONT.mono, fontSize: '0.75rem', letterSpacing: '0.1em', fontWeight: 700, color: '#fff', cursor: 'pointer' },
 };
