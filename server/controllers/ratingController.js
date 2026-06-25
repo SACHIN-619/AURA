@@ -89,8 +89,17 @@ export const submitRating = async (req, res) => {
 export const getSalonRatings = async (req, res) => {
   const { salonId } = req.params;
   try {
+    const mongoose = await import('mongoose');
+    let matchId = salonId;
+    if (mongoose.default.Types.ObjectId.isValid(salonId)) {
+      matchId = new mongoose.default.Types.ObjectId(salonId);
+    } else {
+      // If it's a dummy string ID, return empty array immediately
+      return res.json({ success: true, ratings: [], stats: { avgStars: 0, totalCount: 0, verifiedCount: 0 } });
+    }
+
     const [stats] = await Rating.aggregate([
-      { $match: { salonId: new (await import('mongoose')).default.Types.ObjectId(salonId), status: 'visible' } },
+      { $match: { salonId: matchId, status: 'visible' } },
       {
         $group: {
           _id: null,

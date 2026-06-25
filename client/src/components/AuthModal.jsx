@@ -51,7 +51,7 @@ export default function AuthModal({ onClose, onAuthed }) {
           <div style={{ fontFamily: FONT.display, fontSize: '2.2rem', fontWeight: 300, color: COLOR.textPrimary }}>
             {mode === 'signup' ? 'Create Account' : 'Welcome Back'}
           </div>
-          <p style={{ fontFamily: FONT.mono, fontSize: '0.5rem', letterSpacing: '0.15em', color: COLOR.textMuted, marginTop: '0.6rem' }}>
+          <p style={{ fontFamily: FONT.mono, fontSize: '0.85rem', letterSpacing: '0.05em', color: COLOR.textMuted, marginTop: '0.6rem' }}>
             {mode === 'signup' ? 'Save bookings and ratings to your account' : 'Log in to see your booking history'}
           </p>
         </div>
@@ -88,7 +88,7 @@ export default function AuthModal({ onClose, onAuthed }) {
 function Field({ label, children }) {
   return (
     <div style={{ marginBottom: '0.85rem' }}>
-      <label style={{ display: 'block', fontFamily: FONT.mono, fontSize: '0.42rem', letterSpacing: '0.16em', color: COLOR.textMuted, marginBottom: '0.32rem' }}>{label}</label>
+      <label style={{ display: 'block', fontFamily: FONT.mono, fontSize: '0.85rem', letterSpacing: '0.08em', color: COLOR.textMuted, marginBottom: '0.32rem' }}>{label}</label>
       {children}
     </div>
   );
@@ -102,6 +102,6 @@ const S = {
   inp: { width: '100%', padding: '0.85rem 1.1rem', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, outline: 'none', fontFamily: FONT.body, fontSize: '0.9rem', color: COLOR.textPrimary, boxSizing: 'border-box', transition: 'border-color 0.2s' },
   err: { color: '#EF5350', fontFamily: FONT.mono, fontSize: '0.45rem', marginBottom: '0.8rem', textAlign: 'center' },
   submit: { width: '100%', padding: '0.95rem', background: 'linear-gradient(135deg,#FFF2A8,#D4AF37)', border: 'none', borderRadius: 8, fontFamily: FONT.mono, fontSize: '0.6rem', letterSpacing: '0.2em', fontWeight: 700, color: '#000', cursor: 'pointer', marginTop: '1rem', boxShadow: '0 8px 24px rgba(212,175,55,0.2)' },
-  switchBtn: { display: 'block', width: '100%', textAlign: 'center', background: 'none', border: 'none', fontFamily: FONT.mono, fontSize: '0.42rem', letterSpacing: '0.08em', color: COLOR.gold, cursor: 'pointer', marginTop: '0.9rem', padding: '0.4rem' },
-  skipNote: { textAlign: 'center', fontFamily: FONT.mono, fontSize: '0.38rem', letterSpacing: '0.05em', color: COLOR.textGhost, marginTop: '0.7rem', lineHeight: 1.6 },
+  switchBtn: { display: 'block', width: '100%', textAlign: 'center', background: 'none', border: 'none', fontFamily: FONT.mono, fontSize: '0.85rem', letterSpacing: '0.04em', color: COLOR.gold, cursor: 'pointer', marginTop: '0.9rem', padding: '0.4rem' },
+  skipNote: { textAlign: 'center', fontFamily: FONT.mono, fontSize: '0.75rem', letterSpacing: '0.02em', color: COLOR.textGhost, marginTop: '0.7rem', lineHeight: 1.6 },
 };

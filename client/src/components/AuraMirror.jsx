@@ -11,7 +11,7 @@ const GENDER_OPTIONS = ['Woman', 'Man', 'Non-binary', 'Prefer not to say'];
 
 export default function AuraMirror({onClose,onBook}) {
   const { trackEvent, user, setAuthModalOpen, pushToast } = useAura();
-  const [stage,setStage]=useState('gender'); // gender | upload | crop | analyzing | result | error
+  const [stage,setStage]=useState('upload'); // gender | upload | crop | analyzing | result | error
   const [gender,setGender]=useState(null);
   const [rawImage,setRawImage]=useState(null);   // original uploaded image (data URL)
   const [preview,setPreview]=useState(null);     // cropped/final image (data URL)
@@ -22,12 +22,8 @@ export default function AuraMirror({onClose,onBook}) {
   const imgRef=useRef();
   const cropBoxRef=useRef();
 
-  useEffect(() => {
-    if (!user) {
-      pushToast('Please log in to use Aura Mirror', 'info');
-      setAuthModalOpen(true);
-    }
-  }, [user]);
+  // Removed login requirement in useEffect so guests can use the mirror
+
 
   // Simple drag-to-reposition crop state — keeps a square crop window,
   // user drags the image underneath it to choose what's centered.
@@ -35,12 +31,10 @@ export default function AuraMirror({onClose,onBook}) {
   const dragState=useRef(null);
 
   const chooseGender=(g)=>{ 
-    if(!user) { setAuthModalOpen(true); return; }
-    setGender(g); setStage('upload'); 
+    setGender(g); setStage('preview'); 
   };
   const skipGender=()=>{ 
-    if(!user) { setAuthModalOpen(true); return; }
-    setGender(null); setStage('upload'); 
+    setGender(null); setStage('preview'); 
   };
 
   const onFile=(e)=>{
@@ -97,7 +91,7 @@ export default function AuraMirror({onClose,onBook}) {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, sx, sy, sSize, sSize, 0, 0, 512, 512);
     setPreview(canvas.toDataURL('image/jpeg', 0.9));
-    setStage('preview');
+    setStage('gender');
   }, [cropOffset, rawImage]);
 
   const analyze=async()=>{
@@ -135,27 +129,13 @@ export default function AuraMirror({onClose,onBook}) {
         <div style={{textAlign:'center',marginBottom:'1.3rem'}}>
           <div style={{fontSize:'2rem',color:COLOR.gold,marginBottom:'0.5rem'}}>◈</div>
           <h2 style={{fontFamily:FONT.display,fontSize:'1.6rem',fontWeight:300,color:COLOR.textPrimary,margin:0}}>AURA Mirror</h2>
-          <p style={{fontFamily:FONT.mono,fontSize:'0.47rem',letterSpacing:'0.2em',color:COLOR.textMuted,marginTop:'0.3rem'}}>AI-powered style recommendations</p>
+          <p style={{fontFamily:FONT.mono,fontSize:'0.85rem',letterSpacing:'0.1em',color:COLOR.textMuted,marginTop:'0.3rem'}}>AI-powered style recommendations</p>
         </div>
 
         <AnimatePresence mode="wait">
-          {!user && (
-            <motion.div key="loginPrompt" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} style={{textAlign: 'center', padding: '1rem 0'}}>
-              <p style={{fontFamily:FONT.mono,fontSize:'0.46rem',letterSpacing:'0.12em',color:COLOR.textMuted,marginBottom:'1.5rem',lineHeight:1.7}}>
-                Please log in to AURA to access the AI Mirror. We securely store your results so you can review them later.
-              </p>
-              <button 
-                style={S.primBtn} 
-                onClick={() => { onClose(); setAuthModalOpen(true); }}
-              >
-                Log In to Continue
-              </button>
-            </motion.div>
-          )}
-
-          {user && stage==='gender' && (
+          {stage==='gender' && (
             <motion.div key="gen" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
-              <p style={{fontFamily:FONT.mono,fontSize:'0.46rem',letterSpacing:'0.12em',color:COLOR.textMuted,textAlign:'center',marginBottom:'1.1rem',lineHeight:1.7}}>
+              <p style={{fontFamily:FONT.mono,fontSize:'0.85rem',letterSpacing:'0.05em',color:COLOR.textMuted,textAlign:'center',marginBottom:'1.1rem',lineHeight:1.7}}>
                 Help us tailor recommendations — this is optional and never shared.
               </p>
               <div style={{display:'flex',flexDirection:'column',gap:'0.55rem',marginBottom:'0.9rem'}}>
@@ -181,15 +161,14 @@ export default function AuraMirror({onClose,onBook}) {
               </div>
               <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={onFile}/>
               <input ref={camRef} type="file" accept="image/*" capture="user" style={{display:'none'}} onChange={onFile}/>
-              {error&&<p style={{fontFamily:FONT.mono,fontSize:'0.44rem',color:'#EF5350',textAlign:'center',marginTop:'0.5rem'}}>{error}</p>}
-              <button style={S.skipLink} onClick={()=>setStage('gender')}>← Back</button>
+              {error&&<p style={{fontFamily:FONT.mono,fontSize:'0.8rem',color:'#EF5350',textAlign:'center',marginTop:'0.5rem'}}>{error}</p>}
             </motion.div>
           )}
 
           {/* Crop step — drag to reposition face inside the square frame */}
           {stage==='crop'&&rawImage&&(
             <motion.div key="crop" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
-              <p style={{fontFamily:FONT.mono,fontSize:'0.42rem',letterSpacing:'0.1em',color:COLOR.textGhost,textAlign:'center',marginBottom:'0.7rem'}}>
+              <p style={{fontFamily:FONT.mono,fontSize:'0.85rem',letterSpacing:'0.05em',color:COLOR.textGhost,textAlign:'center',marginBottom:'0.7rem'}}>
                 Drag to center your face, then confirm
               </p>
               <div
@@ -243,16 +222,15 @@ export default function AuraMirror({onClose,onBook}) {
             <motion.div key="an" initial={{opacity:0}} animate={{opacity:1}} style={{textAlign:'center',padding:'2rem 0'}}>
               <div style={S.spinner}/>
               <div style={{fontFamily:FONT.display,fontSize:'1.1rem',color:COLOR.textPrimary,marginBottom:'0.3rem'}}>AI is reading your vibe…</div>
-              <div style={{fontFamily:FONT.mono,fontSize:'0.46rem',letterSpacing:'0.15em',color:COLOR.textMuted}}>Matching you with Hyderabad's finest</div>
+              <div style={{fontFamily:FONT.mono,fontSize:'0.85rem',letterSpacing:'0.05em',color:COLOR.textMuted}}>Matching you with Hyderabad's finest</div>
             </motion.div>
           )}
 
           {/* Honest error — no fake fallback result */}
           {stage==='error'&&(
             <motion.div key="err" initial={{opacity:0}} animate={{opacity:1}} style={{textAlign:'center',padding:'1.5rem 0'}}>
-              <div style={{fontSize:'2rem',marginBottom:'0.8rem',opacity:0.5}}>⚠</div>
-              <div style={{fontFamily:FONT.display,fontSize:'1.05rem',color:COLOR.textPrimary,marginBottom:'0.5rem'}}>Couldn't analyze your photo</div>
-              <p style={{fontFamily:FONT.mono,fontSize:'0.43rem',letterSpacing:'0.08em',color:COLOR.textMuted,marginBottom:'1.2rem',lineHeight:1.7}}>{error}</p>
+              <div style={{fontSize:'2rem',marginBottom:'1rem'}}>⚠️</div>
+              <div style={{fontFamily:FONT.mono,fontSize:'0.85rem',color:'#EF5350',marginBottom:'1.5rem'}}>{error}</div>
               <div style={{display:'flex',gap:'0.75rem'}}>
                 <button style={S.secBtn} onClick={retryUpload}>Try another photo</button>
                 <button style={S.primBtn} onClick={analyze}>Retry analysis</button>
@@ -265,13 +243,13 @@ export default function AuraMirror({onClose,onBook}) {
             <motion.div key="rs" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}>
               <div style={{textAlign:'center',padding:'1rem 0 0.8rem',borderBottom:'1px solid rgba(212,175,55,0.1)',marginBottom:'1rem'}}>
                 <div style={{fontFamily:FONT.display,fontSize:'3.5rem',fontWeight:300,color:COLOR.gold,lineHeight:1}}>{result.score}</div>
-                <div style={{fontFamily:FONT.mono,fontSize:'0.46rem',letterSpacing:'0.25em',color:COLOR.textMuted,marginBottom:'0.6rem'}}>AURA STYLE SCORE</div>
-                {(result.reasons||[]).map((r,i)=><div key={i} style={{display:'inline-block',fontFamily:FONT.mono,fontSize:'0.44rem',letterSpacing:'0.1em',color:'rgba(212,175,55,0.7)',margin:'0.15rem 0.3rem'}}>✓ {r}</div>)}
+                <div style={{fontFamily:FONT.mono,fontSize:'0.85rem',letterSpacing:'0.25em',color:COLOR.textMuted,marginBottom:'0.6rem'}}>AURA STYLE SCORE</div>
+                {(result.reasons||[]).map((r,i)=><div key={i} style={{display:'inline-block',fontFamily:FONT.mono,fontSize:'0.8rem',letterSpacing:'0.1em',color:'rgba(212,175,55,0.7)',margin:'0.15rem 0.3rem'}}>✓ {r}</div>)}
               </div>
               <p style={{fontFamily:FONT.display,fontSize:'0.95rem',fontStyle:'italic',color:COLOR.textMuted,marginBottom:'0.6rem',lineHeight:1.6}}>{result.analysis}</p>
-              {result.detectedContext&&<p style={{fontFamily:FONT.mono,fontSize:'0.4rem',letterSpacing:'0.08em',color:COLOR.textGhost,marginBottom:'0.4rem'}}>👁 {result.detectedContext}</p>}
-              {result.aiProvider && <p style={{fontFamily:FONT.mono,fontSize:'0.35rem',letterSpacing:'0.05em',color:'rgba(255,255,255,0.2)',marginBottom:'1.2rem',textAlign:'right'}}>Powered by {result.aiProvider}</p>}
-              <div style={{fontFamily:FONT.mono,fontSize:'0.44rem',letterSpacing:'0.22em',color:COLOR.textGhost,marginBottom:'0.7rem'}}>RECOMMENDED FOR YOU</div>
+              {result.detectedContext&&<p style={{fontFamily:FONT.mono,fontSize:'0.75rem',letterSpacing:'0.08em',color:COLOR.textGhost,marginBottom:'0.4rem'}}>👁 {result.detectedContext}</p>}
+              {result.aiProvider && <p style={{fontFamily:FONT.mono,fontSize:'0.7rem',letterSpacing:'0.05em',color:'rgba(255,255,255,0.2)',marginBottom:'1.2rem',textAlign:'right'}}>Powered by {result.aiProvider}</p>}
+              <div style={{fontFamily:FONT.mono,fontSize:'0.85rem',letterSpacing:'0.22em',color:COLOR.textGhost,marginBottom:'0.7rem'}}>RECOMMENDED FOR YOU</div>
               <div className="mirror-styles-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'0.5rem',marginBottom:'0.5rem'}}>
                 {(result.styles||[]).map((st,i)=>(
                   <motion.div key={i} style={{border:'1px solid rgba(212,175,55,0.15)',borderRadius:8,overflow:'hidden',cursor:'pointer'}} whileHover={{scale:1.02,borderColor:'rgba(212,175,55,0.45)'}}>
@@ -281,7 +259,7 @@ export default function AuraMirror({onClose,onBook}) {
                       style={{width:'100%',height:80,objectFit:'cover',display:'block'}}
                       onError={e=>{e.target.style.display='none';}}
                     />
-                    <div style={{fontFamily:FONT.mono,fontSize:'0.4rem',letterSpacing:'0.1em',color:COLOR.textMuted,padding:'0.35rem 0.4rem',textAlign:'center'}}>{st.label}</div>
+                    <div style={{fontFamily:FONT.mono,fontSize:'0.75rem',letterSpacing:'0.1em',color:COLOR.textMuted,padding:'0.35rem 0.4rem',textAlign:'center'}}>{st.label}</div>
                   </motion.div>
                 ))}
               </div>

@@ -11,7 +11,7 @@ import VerifiedBadge from './VerifiedBadge';
 import VerifiedListingBadge from './VerifiedListingBadge';
 
 export default function AdminDashboard() {
-  const [token, setToken] = useState(sessionStorage.getItem('aura_admin_token') || '');
+  const [token, setToken] = useState(localStorage.getItem('aura_token') || '');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [overview, setOverview] = useState(null);
@@ -38,7 +38,8 @@ export default function AdminDashboard() {
       if (d.user.role !== 'admin') {
         throw new Error('This account does not have admin access. Ask the operator to promote your role in the database.');
       }
-      sessionStorage.setItem('aura_admin_token', d.token);
+      localStorage.setItem('aura_token', d.token);
+      localStorage.setItem('aura_user', JSON.stringify(d.user));
       setToken(d.token);
       fetchAll(d.token);
     } catch (e) {
@@ -73,7 +74,8 @@ export default function AdminDashboard() {
       setReports(reps.salons || []);
     } catch (e) {
       setError(e.message);
-      sessionStorage.removeItem('aura_admin_token');
+      localStorage.removeItem('aura_token');
+      localStorage.removeItem('aura_user');
       setToken('');
     } finally {
       setLoading(false);
@@ -104,7 +106,7 @@ export default function AdminDashboard() {
     } catch { /* acceptable for an internal tool */ }
   };
 
-  const logout = () => { sessionStorage.removeItem('aura_admin_token'); setToken(''); };
+  const logout = () => { localStorage.removeItem('aura_token'); localStorage.removeItem('aura_user'); setToken(''); window.location.href = '/'; };
 
   if (!token) {
     return (
@@ -325,39 +327,39 @@ function RatingRow({ r, onModerate }) {
 
 const S = {
   loginWrap: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#030204' },
-  loginBox:  { width: 320, padding: '2rem', background: 'rgba(18,14,24,0.8)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: 12 },
-  logo:      { fontFamily: FONT.mono, fontSize: '0.6rem', letterSpacing: '0.2em', color: COLOR.gold, marginBottom: '1.2rem', textAlign: 'center' },
-  keyInput:  { width: '100%', padding: '0.6rem', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: COLOR.textPrimary, marginBottom: '0.8rem', boxSizing: 'border-box' },
-  loginBtn:  { width: '100%', padding: '0.6rem', background: COLOR.gold, border: 'none', borderRadius: 6, color: '#000', fontFamily: FONT.mono, fontSize: '0.46rem', letterSpacing: '0.16em', cursor: 'pointer' },
-  error:     { color: '#EF5350', fontFamily: FONT.mono, fontSize: '0.42rem', marginTop: '0.6rem', textAlign: 'center' },
-  hint:      { color: COLOR.textGhost, fontFamily: FONT.mono, fontSize: '0.38rem', marginTop: '1rem', textAlign: 'center', lineHeight: 1.6 },
+  loginBox:  { width: 400, padding: '2rem', background: 'rgba(18,14,24,0.8)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: 12 },
+  logo:      { fontFamily: FONT.mono, fontSize: '1rem', letterSpacing: '0.2em', color: COLOR.gold, marginBottom: '1.2rem', textAlign: 'center' },
+  keyInput:  { width: '100%', padding: '0.8rem', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: COLOR.textPrimary, marginBottom: '0.8rem', boxSizing: 'border-box' },
+  loginBtn:  { width: '100%', padding: '0.8rem', background: COLOR.gold, border: 'none', borderRadius: 6, color: '#000', fontFamily: FONT.mono, fontSize: '0.85rem', letterSpacing: '0.16em', cursor: 'pointer' },
+  error:     { color: '#EF5350', fontFamily: FONT.mono, fontSize: '0.8rem', marginTop: '0.6rem', textAlign: 'center' },
+  hint:      { color: COLOR.textGhost, fontFamily: FONT.mono, fontSize: '0.75rem', marginTop: '1rem', textAlign: 'center', lineHeight: 1.6 },
   wrap:      { minHeight: '100vh', background: '#030204', padding: '1.5rem', color: COLOR.textPrimary, fontFamily: FONT.body },
   header:    { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' },
-  logoutBtn: { background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, color: COLOR.textMuted, padding: '0.4rem 0.9rem', fontFamily: FONT.mono, fontSize: '0.42rem', cursor: 'pointer' },
+  logoutBtn: { background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, color: COLOR.textMuted, padding: '0.4rem 0.9rem', fontFamily: FONT.mono, fontSize: '0.8rem', cursor: 'pointer' },
   tabs:      { display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' },
-  tab:       { padding: '0.5rem 1rem', background: 'transparent', border: '1px solid rgba(212,175,55,0.15)', borderRadius: 6, color: COLOR.textMuted, fontFamily: FONT.mono, fontSize: '0.42rem', letterSpacing: '0.1em', cursor: 'pointer', position: 'relative' },
+  tab:       { padding: '0.5rem 1rem', background: 'transparent', border: '1px solid rgba(212,175,55,0.15)', borderRadius: 6, color: COLOR.textMuted, fontFamily: FONT.mono, fontSize: '0.8rem', letterSpacing: '0.1em', cursor: 'pointer', position: 'relative' },
   tabActive: { borderColor: 'rgba(212,175,55,0.5)', color: COLOR.gold, background: 'rgba(212,175,55,0.06)' },
-  badge:     { marginLeft: 6, background: '#EF5350', color: '#fff', borderRadius: 10, padding: '0 5px', fontSize: '0.6rem' },
+  badge:     { marginLeft: 6, background: '#EF5350', color: '#fff', borderRadius: 10, padding: '0 5px', fontSize: '0.75rem' },
   grid4:     { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: '0.8rem' },
   statCard:  { padding: '1rem', background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.12)', borderRadius: 8 },
   statCardWarn: { borderColor: 'rgba(239,83,80,0.3)' },
-  statLabel: { fontFamily: FONT.mono, fontSize: '0.4rem', letterSpacing: '0.12em', color: COLOR.textGhost, marginBottom: '0.4rem' },
+  statLabel: { fontFamily: FONT.mono, fontSize: '0.75rem', letterSpacing: '0.12em', color: COLOR.textGhost, marginBottom: '0.4rem' },
   statValue: { fontFamily: FONT.display, fontSize: '1.6rem' },
-  sectionTitle: { fontFamily: FONT.display, fontSize: '1.1rem', fontWeight: 300, marginBottom: '0.7rem' },
-  empty:     { color: COLOR.textGhost, fontFamily: FONT.mono, fontSize: '0.42rem' },
+  sectionTitle: { fontFamily: FONT.display, fontSize: '1.3rem', fontWeight: 300, marginBottom: '0.7rem' },
+  empty:     { color: COLOR.textGhost, fontFamily: FONT.mono, fontSize: '0.8rem' },
   table:     { display: 'flex', flexDirection: 'column', gap: '0.6rem' },
   bookingRow:{ display: 'flex', justifyContent: 'space-between', padding: '0.8rem', background: 'rgba(212,175,55,0.03)', borderRadius: 8, border: '1px solid rgba(212,175,55,0.1)' },
   ratingRow: { display: 'flex', gap: '1rem', padding: '0.8rem', background: 'rgba(212,175,55,0.03)', borderRadius: 8, border: '1px solid rgba(212,175,55,0.1)', marginBottom: '0.6rem', alignItems: 'flex-start' },
   listingRow:{ display: 'flex', gap: '1rem', padding: '0.8rem', background: 'rgba(212,175,55,0.03)', borderRadius: 8, border: '1px solid rgba(212,175,55,0.1)', marginBottom: '0.6rem', alignItems: 'center' },
-  verifyBtn: { display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.5rem 0.8rem', background: 'rgba(43,163,154,0.1)', border: '1px solid rgba(43,163,154,0.35)', borderRadius: 6, color: '#7FE3D8', fontFamily: FONT.mono, fontSize: '0.4rem', letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 },
-  bName:     { fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem' },
-  bMeta:     { fontFamily: FONT.mono, fontSize: '0.4rem', color: COLOR.textGhost, marginTop: '0.2rem' },
+  verifyBtn: { display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.5rem 0.8rem', background: 'rgba(43,163,154,0.1)', border: '1px solid rgba(43,163,154,0.35)', borderRadius: 6, color: '#7FE3D8', fontFamily: FONT.mono, fontSize: '0.75rem', letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 },
+  bName:     { fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.3rem' },
+  bMeta:     { fontFamily: FONT.mono, fontSize: '0.75rem', color: COLOR.textGhost, marginTop: '0.2rem' },
   bRight:    { textAlign: 'right' },
-  bService:  { fontSize: '0.8rem', color: COLOR.gold },
-  statusPip: { fontFamily: FONT.mono, fontSize: '0.38rem', letterSpacing: '0.1em' },
-  comment:   { fontSize: '0.78rem', color: COLOR.textMuted, marginTop: '0.4rem' },
+  bService:  { fontSize: '0.9rem', color: COLOR.gold },
+  statusPip: { fontFamily: FONT.mono, fontSize: '0.75rem', letterSpacing: '0.1em' },
+  comment:   { fontSize: '0.85rem', color: COLOR.textMuted, marginTop: '0.4rem' },
   actions:   { display: 'flex', flexDirection: 'column', gap: '0.4rem', flexShrink: 0 },
-  actBtn:    { background: 'none', border: '1px solid rgba(212,175,55,0.2)', borderRadius: 5, padding: '0.3rem 0.6rem', color: COLOR.textMuted, fontFamily: FONT.mono, fontSize: '0.38rem', cursor: 'pointer', whiteSpace: 'nowrap' },
+  actBtn:    { background: 'none', border: '1px solid rgba(212,175,55,0.2)', borderRadius: 5, padding: '0.4rem 0.6rem', color: COLOR.textMuted, fontFamily: FONT.mono, fontSize: '0.75rem', cursor: 'pointer', whiteSpace: 'nowrap' },
   gapRow:    { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.7rem', background: 'rgba(212,175,55,0.03)', borderRadius: 8 },
   gapStats:  { display: 'flex', gap: '1rem', fontFamily: FONT.mono, fontSize: '0.42rem', color: COLOR.textMuted },
 };

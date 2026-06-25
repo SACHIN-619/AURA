@@ -313,7 +313,7 @@ const SalonCard = forwardRef(function SalonCard({
 
           <div style={{ ...S.statusRow, color: hours.isOpen === true ? '#4CAF50' : hours.isOpen === false ? '#EF5350' : COLOR.textGhost }}>
             <span style={S.statusDot} />
-            <span style={S.statusText}>{hours.label}</span>
+            <span style={S.statusText}><DynamicTranslate text={hours.label} /></span>
           </div>
 
           <div style={S.ratingWrap}>
@@ -324,15 +324,15 @@ const SalonCard = forwardRef(function SalonCard({
           <div style={S.aiDrawerContainer}>
             {aiAnalysis ? (
               <div style={S.aiInsightBody}>
-                <p style={S.aiInsightText}><ClockIcon size={12} color={COLOR.gold} /> <strong>AI Summary:</strong> {aiAnalysis.summary}</p>
+                <p style={S.aiInsightText}><ClockIcon size={12} color={COLOR.gold} /> <strong><DynamicTranslate text="AI Summary:" /></strong> <DynamicTranslate text={aiAnalysis.summary} /></p>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'8px'}}>
-                  <span style={S.aiPricePill}>Est. Entry Price: {aiAnalysis.estimatedBasePrice || "₹500+"}</span>
+                  <span style={S.aiPricePill}><DynamicTranslate text="Est. Entry Price:" /> <DynamicTranslate text={String(aiAnalysis.estimatedBasePrice || "₹500+")} /></span>
                   <button 
                     onClick={() => window.dispatchEvent(new CustomEvent('openAuraChat', { detail: { query: `Tell me more about ${name} in ${hub}` } }))}
                     style={{...S.aiEnrichBtn, padding: '4px 10px', width: 'auto', fontSize: '0.65rem', margin: 0, height: 'auto'}}
                     title="Ask AI Concierge for follow-up details"
                   >
-                    <MessageIcon size={10} color={COLOR.gold} /> Ask AI
+                    <MessageIcon size={10} color={COLOR.gold} /> <DynamicTranslate text="Ask AI" />
                   </button>
                 </div>
               </div>
@@ -346,7 +346,7 @@ const SalonCard = forwardRef(function SalonCard({
                 whileHover={{ filter: 'brightness(1.1)' }}
                 whileTap={{ scale: 0.98 }}
               >
-                {fetchingAi ? 'Synthesizing live profiles... ⟳' : '✦ Tap to parse live AI insights & pricing'}
+                {fetchingAi ? <DynamicTranslate text="Synthesizing live profiles... ⟳" /> : <DynamicTranslate text="✦ Tap to parse live AI insights & pricing" />}
               </motion.button>
             )}
           </div>
@@ -361,7 +361,7 @@ const SalonCard = forwardRef(function SalonCard({
             ) : (
               <span style={S.tagMuted}>{t('card_category_unlisted')}</span>
             )}
-            {gender && <span style={S.tagGender}>{gender}</span>}
+            {gender && <span style={S.tagGender}><DynamicTranslate text={gender} /></span>}
           </div>
 
           <div style={S.divider} />
@@ -378,7 +378,7 @@ const SalonCard = forwardRef(function SalonCard({
             ) : (
               <span style={{ ...S.contactItem, opacity: 0.3 }} title="Website unlisted"><GlobeIcon size={11} color={COLOR.textGhost} /></span>
             )}
-            <span style={S.priceNote}>Prices adjust dynamically</span>
+            <span style={S.priceNote}><DynamicTranslate text="Prices adjust dynamically" /></span>
           </div>
 
           {/* Action Arrays */}

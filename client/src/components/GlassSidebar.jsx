@@ -158,7 +158,7 @@ export default function GlassSidebar({ collapsed, setCollapsed }) {
 
       {/* New Suburb Search */}
       <div style={S.section}>
-        <div style={S.label}>🗺 Search New Area</div>
+        <div style={S.label}><DynamicTranslate text="🗺 Search New Area" /></div>
         <form onSubmit={handleSuburbSearch} style={{ display: 'flex', gap: '0.3rem' }}>
           <input
             style={{ ...S.searchInp, marginBottom: 0, flex: 1 }}
@@ -177,7 +177,7 @@ export default function GlassSidebar({ collapsed, setCollapsed }) {
           </button>
         </form>
         <p style={S.suburbNote}>
-          Unknown area? We'll verify and notify admin to expand coverage.
+          <DynamicTranslate text="Unknown area? We'll verify and notify admin to expand coverage." />
         </p>
       </div>
 
@@ -194,7 +194,7 @@ export default function GlassSidebar({ collapsed, setCollapsed }) {
             onClick={clearFilters}
             style={{ ...S.filterBtn, ...(activeFilters.size === 0 ? S.filterBtnActive : {}) }}
           >
-            All Services
+            <DynamicTranslate text="All Services" />
           </button>
           {CATEGORY_FILTERS.map(f => (
             <button
@@ -224,7 +224,7 @@ export default function GlassSidebar({ collapsed, setCollapsed }) {
                 onClick={() => setGenderFilter(f.value === 'any' ? 'any' : f.value)}
                 style={{ ...S.genderBtn, ...(isActive ? S.genderBtnActive : {}) }}
               >
-                {f.label}
+                <DynamicTranslate text={f.label} />
               </button>
             );
           })}
@@ -237,7 +237,7 @@ export default function GlassSidebar({ collapsed, setCollapsed }) {
           onClick={() => setShowPetInfo(v => !v)}
           style={{ ...S.genderBtn, ...(showPetInfo ? S.genderBtnActive : {}), textAlign: 'left', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
         >
-          🐾 Animal Grooming
+          <DynamicTranslate text="🐾 Animal Grooming" />
           <span style={{ marginLeft: 'auto', fontSize: '0.6rem' }}>{showPetInfo ? '▲' : '▼'}</span>
         </button>
         <AnimatePresence>

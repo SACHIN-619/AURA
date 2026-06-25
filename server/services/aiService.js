@@ -11,7 +11,7 @@ const getHF     = () => { if(!_hf)    { if(!process.env.HUGGINGFACE_API_KEY) thr
 const clean = (t) => { const c=t.replace(/```json\s*/gi,'').replace(/```/g,'').trim(); try{return JSON.parse(c);}catch{} const m=c.match(/\{[\s\S]+\}/); if(!m) return null; try{return JSON.parse(m[0]);}catch{return null;} };
 
 async function callGemini(sys, msg) {
-  const models = ['gemini-2.0-flash','gemini-1.5-flash-latest'];
+  const models = ['gemini-pro', 'gemini-1.5-pro'];
   for(const m of models) {
     try {
       const model = getGemini().getGenerativeModel({model:m});
@@ -107,7 +107,7 @@ export const generateStructuredJSON = async (systemPrompt, userMessage) => {
 export async function queryYourGeminiModel({ prompt }) {
   try {
     const gemini = getGemini();
-    const model = gemini.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    const model = gemini.getGenerativeModel({ model: 'gemini-pro' });
     const result = await model.generateContent(prompt);
     const text = result.response.text();
     if (text) return text;
