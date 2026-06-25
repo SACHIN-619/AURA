@@ -336,19 +336,19 @@ const SalonCard = forwardRef(function SalonCard({
                   </button>
                 </div>
               </div>
-            ) : hov ? (
+            ) : (
               <motion.button 
                 onClick={triggerAiEnrichment} 
                 style={S.aiEnrichBtn} 
                 disabled={fetchingAi}
-                animate={{ scale: [1, 1.01, 1], boxShadow: ["0 0 5px rgba(212,175,55,0.1)", "0 0 15px rgba(212,175,55,0.5)", "0 0 5px rgba(212,175,55,0.1)"] }}
-                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                animate={hov ? { scale: [1, 1.01, 1], boxShadow: ["0 0 5px rgba(212,175,55,0.1)", "0 0 15px rgba(212,175,55,0.5)", "0 0 5px rgba(212,175,55,0.1)"] } : {}}
+                transition={hov ? { repeat: Infinity, duration: 2, ease: "easeInOut" } : {}}
                 whileHover={{ filter: 'brightness(1.1)' }}
                 whileTap={{ scale: 0.98 }}
               >
                 {fetchingAi ? 'Synthesizing live profiles... ⟳' : '✦ Tap to parse live AI insights & pricing'}
               </motion.button>
-            ) : null}
+            )}
           </div>
 
           <div style={S.tags}>

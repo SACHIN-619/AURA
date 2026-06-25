@@ -65,6 +65,8 @@ const ENGLISH_DICT = {
   'rating_submit': 'Submit Rating',
   'rating_rate_it': 'Rate It',
   'rating_no_ratings': 'No ratings yet',
+  'ai_placeholder': 'Ask AI for recommendations...',
+  'ai_ask': 'Ask',
   'booking_whatsapp_title': 'WHATSAPP BOOKING',
   'booking_request_title': 'AURA BOOKING REQUEST',
   'booking_your_name': 'Your Name',

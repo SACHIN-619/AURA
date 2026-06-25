@@ -13,6 +13,7 @@ import LanguageSelector from './components/LanguageSelector';
 import AuthModal from './components/AuthModal';
 import MyAccount from './components/MyAccount';
 import { IntroOverlay, HubLoader } from './components/CinematicOverlays';
+import DynamicTranslate from './components/DynamicTranslate';
 import { COLOR, FONT } from './utils/tokens';
 import { Routes, Route } from 'react-router-dom';
 import OwnerDashboardLayout from './pages/owner/OwnerDashboardLayout';
@@ -106,7 +107,6 @@ function AccountButton() {
         </div>
       )}
       <AnimatePresence>
-        {authModalOpen && <AuthModal key="auth" onClose={() => setAuthModalOpen?.(false)} onAuthed={(u) => setUser?.(u)} />}
         {showAccount && <MyAccount key="account" onClose={() => setShowAccount(false)} />}
       </AnimatePresence>
     </>
@@ -120,9 +120,9 @@ function PageHeader() {
     <motion.div style={S.header} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
       <div>
         <h1 style={S.title}>
-          Discover <span style={{ color: COLOR.gold }}>{activeHub || defaultCity}</span>
+          <DynamicTranslate text="Discover" /> <span style={{ color: COLOR.gold }}><DynamicTranslate text={activeHub || defaultCity} /></span>
         </h1>
-        <p style={S.sub}>PREMIUM LUXURY SALONS · LIVE ASSISTED REGIONAL CLUSTERS</p>
+        <p style={S.sub}><DynamicTranslate text="PREMIUM LUXURY SALONS · LIVE ASSISTED REGIONAL CLUSTERS" /></p>
         {aiReply && (
           <motion.p
             style={S.aiReplyBanner}
@@ -227,9 +227,10 @@ function AppShell({ showApp }) {
         )}
       </AnimatePresence>
 
-      {/* AuraMirror — floating middle bottom, accessible to guests */}
+      {/* AuraMirror & AuthModal — floating middle bottom, accessible to guests */}
       <AnimatePresence>
         {showMirror && <AuraMirror key="mir" onClose={() => setShowMirror(false)} />}
+        {authModalOpen && <AuthModal key="auth" onClose={() => setAuthModalOpen?.(false)} onAuthed={(u) => setUser?.(u)} />}
       </AnimatePresence>
 
       <AnimatePresence>
