@@ -141,12 +141,14 @@ function PageHeader() {
 function TopBar({ fontScale, setFontScale, activeHub, openOnboarding }) {
   return (
     <div style={S.topBar}>
-      <button style={{ ...S.accountBtn, padding: '0.4rem 0.8rem', background: 'rgba(10,8,14,0.88)' }} onClick={openOnboarding} title="Change Location">
+      <button style={{ ...S.accountBtn, padding: '0.4rem 0.8rem', background: 'transparent', border: '1px solid rgba(212,175,55,0.3)' }} onClick={openOnboarding} title="Change Location">
         📍 {activeHub || 'Hyderabad'}
       </button>
-      <TextScaleControls scale={fontScale} setScale={setFontScale} />
-      <LanguageSelector />
-      <AccountButton />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+        <TextScaleControls scale={fontScale} setScale={setFontScale} />
+        <LanguageSelector />
+        <AccountButton />
+      </div>
     </div>
   );
 }
@@ -325,18 +327,9 @@ const S = {
 
   // ── Top Bar (fixed, right-aligned row inside main) ────────────────────
   topBar: {
-    position: 'sticky',
-    top: 0,
-    zIndex: 700,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: '0.5rem',
-    padding: '0.55rem 0',
-    marginBottom: '0.25rem',
-    backdropFilter: 'blur(12px)',
-    background: 'rgba(3,2,4,0.6)',
-    borderBottom: '1px solid rgba(212,175,55,0.06)',
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '0.6rem 1.5rem', background: 'rgba(13,10,19,0.95)', borderBottom: '1px solid rgba(212,175,55,0.15)',
+    position: 'sticky', top: 0, zIndex: 1000, backdropFilter: 'blur(10px)'
   },
 
   // Text Scale
