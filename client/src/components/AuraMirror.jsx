@@ -18,6 +18,7 @@ export default function AuraMirror({onClose,onBook}) {
   const [result,setResult]=useState(null);
   const [error,setError]=useState('');
   const fileRef=useRef();
+  const camRef=useRef();
   const imgRef=useRef();
   const cropBoxRef=useRef();
 
@@ -144,12 +145,18 @@ export default function AuraMirror({onClose,onBook}) {
           {/* Upload step */}
           {stage==='upload'&&(
             <motion.div key="up" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
-              <div style={S.drop} onClick={()=>fileRef.current?.click()}>
-                <div style={{fontSize:'2.5rem',marginBottom:'0.8rem',opacity:0.4}}>📸</div>
-                <div style={{fontFamily:FONT.display,fontSize:'1.1rem',color:COLOR.textPrimary,marginBottom:'0.4rem'}}>Upload a selfie</div>
-                <div style={{fontFamily:FONT.mono,fontSize:'0.44rem',letterSpacing:'0.12em',color:COLOR.textGhost}}>We'll recommend styles that suit your look</div>
+              <div style={{display:'flex',gap:'0.5rem',marginBottom:'1rem'}}>
+                <div style={{...S.drop, flex:1, padding:'1.5rem 0.5rem'}} onClick={()=>fileRef.current?.click()}>
+                  <div style={{fontSize:'2rem',marginBottom:'0.5rem',opacity:0.4}}>📸</div>
+                  <div style={{fontFamily:FONT.display,fontSize:'1rem',color:COLOR.textPrimary}}>Upload</div>
+                </div>
+                <div style={{...S.drop, flex:1, padding:'1.5rem 0.5rem'}} onClick={()=>camRef.current?.click()}>
+                  <div style={{fontSize:'2rem',marginBottom:'0.5rem',opacity:0.4}}>🤳</div>
+                  <div style={{fontFamily:FONT.display,fontSize:'1rem',color:COLOR.textPrimary}}>Take Photo</div>
+                </div>
               </div>
               <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={onFile}/>
+              <input ref={camRef} type="file" accept="image/*" capture="user" style={{display:'none'}} onChange={onFile}/>
               {error&&<p style={{fontFamily:FONT.mono,fontSize:'0.44rem',color:'#EF5350',textAlign:'center',marginTop:'0.5rem'}}>{error}</p>}
               <button style={S.skipLink} onClick={()=>setStage('gender')}>← Back</button>
             </motion.div>
@@ -238,7 +245,8 @@ export default function AuraMirror({onClose,onBook}) {
                 {(result.reasons||[]).map((r,i)=><div key={i} style={{display:'inline-block',fontFamily:FONT.mono,fontSize:'0.44rem',letterSpacing:'0.1em',color:'rgba(212,175,55,0.7)',margin:'0.15rem 0.3rem'}}>✓ {r}</div>)}
               </div>
               <p style={{fontFamily:FONT.display,fontSize:'0.95rem',fontStyle:'italic',color:COLOR.textMuted,marginBottom:'0.6rem',lineHeight:1.6}}>{result.analysis}</p>
-              {result.detectedContext&&<p style={{fontFamily:FONT.mono,fontSize:'0.4rem',letterSpacing:'0.08em',color:COLOR.textGhost,marginBottom:'1.2rem'}}>👁 {result.detectedContext}</p>}
+              {result.detectedContext&&<p style={{fontFamily:FONT.mono,fontSize:'0.4rem',letterSpacing:'0.08em',color:COLOR.textGhost,marginBottom:'0.4rem'}}>👁 {result.detectedContext}</p>}
+              {result.aiProvider && <p style={{fontFamily:FONT.mono,fontSize:'0.35rem',letterSpacing:'0.05em',color:'rgba(255,255,255,0.2)',marginBottom:'1.2rem',textAlign:'right'}}>Powered by {result.aiProvider}</p>}
               <div style={{fontFamily:FONT.mono,fontSize:'0.44rem',letterSpacing:'0.22em',color:COLOR.textGhost,marginBottom:'0.7rem'}}>RECOMMENDED FOR YOU</div>
               <div className="mirror-styles-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'0.5rem',marginBottom:'0.5rem'}}>
                 {(result.styles||[]).map((st,i)=>(

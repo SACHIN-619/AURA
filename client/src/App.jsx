@@ -171,6 +171,41 @@ function AppShell({ showApp }) {
   }, [onbDone, allHubs, activeHub, syncHub]);
 
   const showOnboarding = showApp && !onboarded && !onbDone;
+  const [showInactivity, setShowInactivity] = useState(false);
+  const { user, setAuthModalOpen } = useAura();
+
+  // Admin redirect
+  useEffect(() => {
+    if (user?.role === 'admin' && !window.location.pathname.startsWith('/admin')) {
+      window.location.href = '/admin';
+    }
+  }, [user]);
+
+  // Inactivity Timer
+  useEffect(() => {
+    let timeout;
+    const resetTimer = () => {
+      clearTimeout(timeout);
+      // If user is guest, show popup after 2 minutes (120000ms)
+      if (!user) {
+        timeout = setTimeout(() => setShowInactivity(true), 120000);
+      }
+    };
+    
+    if (!user) {
+      window.addEventListener('mousemove', resetTimer);
+      window.addEventListener('keydown', resetTimer);
+      window.addEventListener('scroll', resetTimer);
+      resetTimer();
+    }
+    
+    return () => {
+      clearTimeout(timeout);
+      window.removeEventListener('mousemove', resetTimer);
+      window.removeEventListener('keydown', resetTimer);
+      window.removeEventListener('scroll', resetTimer);
+    };
+  }, [user]);
 
   return (
     <>
@@ -198,6 +233,24 @@ function AppShell({ showApp }) {
               <TopBar fontScale={fontScale} setFontScale={setFontScale} />
               <MainAppRoutes />
             </main>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showInactivity && (
+          <motion.div style={S.inactivityOverlay} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div style={S.inactivityBox} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
+              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>👋</div>
+              <h3 style={{ fontFamily: FONT.display, fontSize: '1.4rem', color: COLOR.textPrimary, margin: '0 0 0.5rem 0' }}>Still looking around?</h3>
+              <p style={{ fontFamily: FONT.mono, fontSize: '0.45rem', letterSpacing: '0.1em', color: COLOR.textMuted, lineHeight: 1.6, marginBottom: '1.2rem' }}>
+                Create a free account to unlock AI style insights, claim XP rewards, and book verified luxury salons across Hyderabad.
+              </p>
+              <div style={{ display: 'flex', gap: '0.8rem' }}>
+                <button style={S.inactivityBtnSec} onClick={() => setShowInactivity(false)}>Maybe later</button>
+                <button style={S.inactivityBtnPrim} onClick={() => { setShowInactivity(false); setAuthModalOpen(true); }}>Log In / Sign Up</button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

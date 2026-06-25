@@ -137,7 +137,7 @@ export default function BookingModal({ salon, onClose, onSuccess }) {
 
         <div style={{ display: 'flex', gap: '0.6rem', padding: '0.7rem 0.9rem', background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.12)', borderRadius: 7, marginBottom: '1rem' }}>
           <span style={{ fontSize: '0.9rem', flexShrink: 0 }}>ℹ</span>
-          <span style={{ fontFamily: FONT.mono, fontSize: '0.41rem', letterSpacing: '0.08em', color: 'rgba(255,248,220,0.45)', lineHeight: 1.7 }}>
+          <span style={{ fontFamily: FONT.mono, fontSize: '0.41rem', letterSpacing: '0.08em', color: mode === 'whatsapp' ? 'rgba(255,248,220,0.45)' : '#EF5350', fontWeight: mode === 'whatsapp' ? 400 : 700, lineHeight: 1.7 }}>
             {mode === 'whatsapp'
               ? "We'll open WhatsApp with a pre-filled message to this salon's real number. You send it directly — we don't see or store the conversation."
               : "This salon has no WhatsApp number listed yet. We'll log your request and our team will try to reach them — response isn't guaranteed for unverified listings."}

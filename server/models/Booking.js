@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 const BookingSchema = new mongoose.Schema({
-  salonId: { type: mongoose.Schema.Types.ObjectId, ref: 'Salon', required: true, index: true },
+  salonId: { type: String, required: true, index: true },
   salonName: { type: String, required: true },
   salonHub:  { type: String, required: true },
   customerName:  { type: String, required: true, trim: true, maxlength: 80 },

@@ -187,6 +187,12 @@ export default function MyAccount({ onClose }) {
                   <span style={S.xpLabel}>{ui.xpString}</span>
                 </div>
               )}
+
+              {data.user.role === 'owner' && (
+                <div style={{ marginTop: '1rem', marginBottom: '0.5rem' }}>
+                  <button style={S.ownerBtn} onClick={() => alert('Owner Dashboard coming soon!')}>✦ Manage your shop</button>
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1.2rem', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -318,6 +324,7 @@ const S = {
   xpLabel: { fontFamily: FONT.mono, fontSize: '0.5rem', color: COLOR.textGhost },
   tab: { padding: '0.4rem 0.8rem', background: 'transparent', border: '1px solid rgba(212,175,55,0.15)', borderRadius: 20, color: COLOR.textMuted, fontFamily: FONT.mono, fontSize: '0.6rem', letterSpacing: '0.08em', cursor: 'pointer' },
   tabActive: { borderColor: 'rgba(212,175,55,0.5)', color: COLOR.gold, background: 'rgba(212,175,55,0.06)' },
+  ownerBtn: { padding: '0.6rem 1.2rem', background: 'linear-gradient(135deg, #D4AF37, #AA8A2A)', color: '#000', border: 'none', borderRadius: 6, fontFamily: FONT.mono, fontSize: '0.55rem', letterSpacing: '0.12em', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 12px rgba(212,175,55,0.3)' },
   list: { display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '1rem' },
   item: { padding: '0.75rem 0.85rem', background: 'rgba(212,175,55,0.03)', border: '1px solid rgba(212,175,55,0.1)', borderRadius: 8 },
   itemTitle: { fontFamily: FONT.body, fontSize: '0.85rem', color: COLOR.textPrimary, display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.5rem' },

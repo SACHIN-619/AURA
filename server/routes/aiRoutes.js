@@ -74,12 +74,13 @@ router.post('/enrich-salon', async (req, res) => {
       return res.status(400).json({ success: false, error: 'salonId is required' });
     }
 
-    const salon = await Salon.findById(salonId);
-    if (!salon) {
-      return res.status(404).json({ success: false, error: 'Salon not found' });
+    let salon = null;
+    if (salonId.match(/^[0-9a-fA-F]{24}$/)) {
+      salon = await Salon.findById(salonId);
     }
-
-    if (salon.aiResearchData && salon.aiResearchData.summary) {
+    
+    // For valid DB salons that already have data
+    if (salon && salon.aiResearchData && salon.aiResearchData.summary) {
       return res.json({ success: true, enriched: salon.aiResearchData });
     }
 
@@ -102,8 +103,10 @@ router.post('/enrich-salon', async (req, res) => {
       enriched.summary = `${name} is a premier styling lounge in ${hub} offering bespoke luxury grooming.`;
     }
 
-    salon.aiResearchData = enriched;
-    await salon.save();
+    if (salon) {
+      salon.aiResearchData = enriched;
+      await salon.save();
+    }
 
     res.json({ success: true, enriched });
   } catch (error) {
