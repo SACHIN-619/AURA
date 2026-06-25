@@ -1,12 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, Sparkles, MapPin, ArrowUpRight } from 'lucide-react';
+// AiChatbot — compact bottom-right chat widget using AURA design system.
+// Uses inline styles (no Tailwind). Sends to the correct backend endpoint
+// with the correct request body shape.
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { API } from '../context/AuraContext';
+import { COLOR, FONT } from '../utils/tokens';
 
-export default function AiChatbot({ currentHub, onNavigateToSalon }) {
+export default function AiChatbot({ currentHub }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: "Hello! I am AURA, your luxury Hyderabad grooming concierge. I can analyze your needs, find specific salon services near your hub, or route you straight to the perfect booking. How can I perfect your look today?"
+      content: "Hello! I'm AURA, your luxury Hyderabad grooming concierge. Ask me about salons, services, haircuts, or treatments near you."
     }
   ]);
   const [input, setInput] = useState('');
@@ -19,26 +24,7 @@ export default function AiChatbot({ currentHub, onNavigateToSalon }) {
     }
   }, [messages, isLoading]);
 
-  // Safe JSON extraction loop without breaking syntax or lines
-  const parseResponseContent = (text) => {
-    let s = text.trim();
-    if (s.startsWith('```')) {
-      s = s.substring(3);
-      if (s.toLowerCase().startsWith('json')) {
-        s = s.substring(4);
-      }
-    }
-    if (s.endsWith('```')) {
-      s = s.substring(0, s.length - 3);
-    }
-    try {
-      return JSON.parse(s.trim());
-    } catch (e) {
-      return { reply: text, directAction: null };
-    }
-  };
-
-  const handleSendMessage = async (e) => {
+  const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
@@ -48,34 +34,37 @@ export default function AiChatbot({ currentHub, onNavigateToSalon }) {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/chat/query', {
+      const response = await fetch(`${API}/api/chat/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          query: userMessage,
-          hubContext: currentHub || 'Banjara Hills', // Uses active user hub location context
-          history: messages.slice(-6).map(m => ({ role: m.role, content: m.content }))
+          message: userMessage,
+          history: messages.slice(-6).map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' })),
+          userLocation: null,
         })
       });
 
       const data = await response.json();
-      
-      if (data.success) {
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: data.reply,
-          suggestedSalons: data.suggestedSalons || [] 
+
+      if (data.message || data.reply) {
+        const reply = data.message || data.reply || '';
+        const salons = Array.isArray(data.salons) ? data.salons : [];
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: reply,
+          salons,
+          aiProvider: data.aiProvider || null,
         }]);
       } else {
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: "I ran into a minor issue checking our salon registry. Please let me know what service you are seeking, and I will locate it." 
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: "I couldn't process that request right now. Try asking about a specific service like 'best haircut in Jubilee Hills'."
         }]);
       }
-    } catch (error) {
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: "Connection to the AURA concierge network was interrupted. Please check your network status." 
+    } catch {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: "Connection to the AURA concierge was interrupted. Please check your network and try again."
       }]);
     } finally {
       setIsLoading(false);
@@ -83,114 +72,205 @@ export default function AiChatbot({ currentHub, onNavigateToSalon }) {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 font-sans antialiased">
-      
+    <>
+      {/* Floating trigger button */}
       {!isOpen && (
-        <button
+        <motion.button
           onClick={() => setIsOpen(true)}
-          className="flex items-center gap-2 bg-gradient-to-r from-neutral-900 to-neutral-800 text-amber-400 border border-neutral-700/50 p-4 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 group"
-          style={{ boxShadow: '0 10px 30px -10px rgba(217, 119, 6, 0.3)' }}
+          style={S.fab}
+          whileHover={{ scale: 1.06, boxShadow: '0 0 24px rgba(212,175,55,0.35)' }}
+          whileTap={{ scale: 0.95 }}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.3, type: 'spring' }}
         >
-          <div className="relative">
-            <MessageSquare className="w-6 h-6 text-amber-400 group-hover:rotate-12 transition-transform"/>
-            <span className="absolute top-0 right-0 w-2 h-2 bg-amber-400 rounded-full animate-ping" />
-          </div>
-          <span className="text-sm font-medium tracking-wide text-neutral-100 pr-1 max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 ease-in-out">
-            Ask AURA
-          </span>
-        </button>
+          <span style={S.fabIcon}>💬</span>
+          <span style={S.fabPulse} />
+        </motion.button>
       )}
 
-      
-      {isOpen && (
-        <div className="w-[380px] h-[520px] bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-6 duration-300">
-          
-          
-          <div className="p-4 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
-                <Sparkles className="w-4 h-4 text-amber-400"/>
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-neutral-100 tracking-wide">AURA Concierge</h3>
-                <div className="flex items-center gap-1 text-[11px] text-neutral-400">
-                  <MapPin className="w-3 h-3 text-amber-500/70"/>
-                  <span>Serving {currentHub || 'Hyderabad'}</span>
+      {/* Chat card */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            style={S.card}
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+          >
+            {/* Header */}
+            <div style={S.header}>
+              <div style={S.headerLeft}>
+                <div style={S.headerIcon}>✦</div>
+                <div>
+                  <div style={S.headerTitle}>AURA Concierge</div>
+                  <div style={S.headerSub}>📍 Serving {currentHub || 'Hyderabad'}</div>
                 </div>
               </div>
+              <button onClick={() => setIsOpen(false)} style={S.closeBtn}>✕</button>
             </div>
-            <button 
-              onClick={() => setIsOpen(false)}
-              className="text-neutral-400 hover:text-neutral-200 p-1 rounded-lg hover:bg-neutral-800/50 transition-colors"
-            >
-              <X className="w-5 h-5"/>
-            </button>
-          </div>
 
-          
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-neutral-900 to-neutral-950 custom-scrollbar">
-            {messages.map((msg, idx) => (
-              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm ${msg.role === 'user' ? 'bg-amber-500 text-neutral-950 font-medium rounded-tr-none' 
-                    : 'bg-neutral-800/80 text-neutral-200 border border-neutral-700/30 rounded-tl-none leading-relaxed'}`}>
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
+            {/* Messages */}
+            <div style={S.messagesWrap}>
+              {messages.map((msg, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: '0.6rem' }}>
+                  <div style={msg.role === 'user' ? S.userBubble : S.aiBubble}>
+                    <p style={S.msgText}>{msg.content}</p>
+                    {msg.salons && msg.salons.length > 0 && (
+                      <div style={S.salonList}>
+                        <div style={S.salonListLabel}>Recommended:</div>
+                        {msg.salons.slice(0, 3).map((s, i) => (
+                          <div key={i} style={S.salonChip}>
+                            {s.name || 'Salon'}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {msg.aiProvider && (
+                      <div style={S.providerTag}>via {msg.aiProvider}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
 
-                  
-                  {msg.suggestedSalons && msg.suggestedSalons.length > 0 && (
-                    <div className="mt-3 pt-2 border-t border-neutral-700/40 space-y-1.5">
-                      <p className="text-[11px] uppercase tracking-wider text-amber-400/80 font-semibold">Recommended Outlets:</p>
-                      {msg.suggestedSalons.map((salon) => (
-                        <button
-                          key={salon._id || salon.osmId}
-                          onClick={() => onNavigateToSalon && onNavigateToSalon(salon._id || salon.osmId)}
-                          className="w-full flex items-center justify-between text-left p-2 bg-neutral-900/60 hover:bg-neutral-900 border border-neutral-700/50 rounded-lg text-xs text-neutral-200 group transition-all"
-                        >
-                          <span className="font-medium truncate pr-2">{salon.name}</span>
-                          <span className="text-amber-400 flex items-center gap-0.5 shrink-0 opacity-80 group-hover:opacity-100">
-                            View <ArrowUpRight className="w-3 h-3"/>
-                          </span>
-                        </button>
-                      ))}
+              {isLoading && (
+                <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '0.6rem' }}>
+                  <div style={S.aiBubble}>
+                    <div style={S.dots}>
+                      <span style={{ ...S.dot, animationDelay: '0ms' }} />
+                      <span style={{ ...S.dot, animationDelay: '150ms' }} />
+                      <span style={{ ...S.dot, animationDelay: '300ms' }} />
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
-            ))}
-            
-            
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-neutral-800/80 rounded-xl rounded-tl-none px-4 py-3 border border-neutral-700/30 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
 
-          
-          <form onSubmit={handleSendMessage} className="p-3 bg-neutral-950 border-t border-neutral-800 flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Search services, haircuts, treatments..."
-              disabled={isLoading}
-              className="flex-1 bg-neutral-900 text-neutral-200 placeholder-neutral-500 text-sm px-3.5 py-2 rounded-xl border border-neutral-800 focus:outline-none focus:border-amber-500/50 disabled:opacity-60 transition-colors"
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || isLoading}
-              className="bg-neutral-800 border border-neutral-700/60 hover:bg-amber-500 hover:text-neutral-950 text-amber-400 p-2 rounded-xl transition-all disabled:opacity-40 disabled:hover:bg-neutral-800 disabled:hover:text-amber-400 shrink-0"
-            >
-              <Send className="w-4 h-4"/>
-            </button>
-          </form>
-
-        </div>
-      )}
-    </div>
+            {/* Input */}
+            <form onSubmit={handleSend} style={S.inputBar}>
+              <input
+                type="text"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                placeholder="Ask about haircuts, salons..."
+                disabled={isLoading}
+                style={S.input}
+              />
+              <button
+                type="submit"
+                disabled={!input.trim() || isLoading}
+                style={{ ...S.sendBtn, opacity: (!input.trim() || isLoading) ? 0.4 : 1 }}
+              >
+                →
+              </button>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
+
+const S = {
+  // FAB
+  fab: {
+    width: 52, height: 52, borderRadius: '50%',
+    background: 'rgba(13,10,19,0.92)', border: '1px solid rgba(212,175,55,0.35)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    cursor: 'pointer', boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+    backdropFilter: 'blur(16px)', position: 'relative',
+  },
+  fabIcon: { fontSize: '1.25rem' },
+  fabPulse: {
+    position: 'absolute', top: 4, right: 4, width: 8, height: 8,
+    borderRadius: '50%', background: COLOR.gold,
+    animation: 'livepulse 2s infinite',
+  },
+
+  // Card
+  card: {
+    position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 1300,
+    width: 360, height: 480, maxHeight: '70vh',
+    background: 'rgba(13,10,19,0.98)', border: '1px solid rgba(212,175,55,0.22)',
+    borderRadius: 16, display: 'flex', flexDirection: 'column',
+    boxShadow: '0 24px 64px rgba(0,0,0,0.85)', overflow: 'hidden',
+    backdropFilter: 'blur(24px)',
+  },
+
+  // Header
+  header: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '0.75rem 1rem', borderBottom: '1px solid rgba(212,175,55,0.1)',
+    background: 'rgba(6,5,8,0.8)', flexShrink: 0,
+  },
+  headerLeft: { display: 'flex', alignItems: 'center', gap: '0.5rem' },
+  headerIcon: {
+    width: 30, height: 30, borderRadius: '50%',
+    background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: COLOR.gold, fontSize: '0.8rem', fontFamily: FONT.mono,
+  },
+  headerTitle: { fontFamily: FONT.body, fontSize: '0.82rem', fontWeight: 600, color: COLOR.textPrimary },
+  headerSub: { fontFamily: FONT.mono, fontSize: '0.46rem', color: COLOR.textGhost, letterSpacing: '0.06em' },
+  closeBtn: {
+    width: 28, height: 28, borderRadius: 6,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
+    color: COLOR.textGhost, cursor: 'pointer', fontSize: '0.7rem',
+    transition: 'all 0.15s',
+  },
+
+  // Messages
+  messagesWrap: {
+    flex: 1, overflowY: 'auto', padding: '0.75rem 0.8rem',
+    display: 'flex', flexDirection: 'column',
+  },
+  userBubble: {
+    maxWidth: '80%', padding: '0.55rem 0.8rem',
+    background: 'linear-gradient(135deg,#FFF2A8,#D4AF37)',
+    borderRadius: '12px 12px 2px 12px', color: '#1a1410',
+  },
+  aiBubble: {
+    maxWidth: '85%', padding: '0.55rem 0.8rem',
+    background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.1)',
+    borderRadius: '12px 12px 12px 2px', color: COLOR.textPrimary,
+  },
+  msgText: { fontFamily: FONT.body, fontSize: '0.78rem', lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap' },
+  salonList: { marginTop: '0.5rem', paddingTop: '0.4rem', borderTop: '1px solid rgba(212,175,55,0.15)' },
+  salonListLabel: { fontFamily: FONT.mono, fontSize: '0.42rem', letterSpacing: '0.1em', color: COLOR.goldDim, marginBottom: '0.3rem', textTransform: 'uppercase' },
+  salonChip: {
+    display: 'inline-block', padding: '0.2rem 0.5rem', margin: '0.15rem 0.2rem 0.15rem 0',
+    background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)',
+    borderRadius: 6, fontFamily: FONT.body, fontSize: '0.68rem', color: COLOR.gold,
+  },
+  providerTag: { fontFamily: FONT.mono, fontSize: '0.38rem', color: COLOR.textGhost, marginTop: '0.3rem', textAlign: 'right' },
+
+  // Loading dots
+  dots: { display: 'flex', gap: 4, padding: '0.2rem 0' },
+  dot: {
+    width: 6, height: 6, borderRadius: '50%', background: COLOR.gold,
+    animation: 'ldpulse 1.2s infinite ease-in-out',
+  },
+
+  // Input
+  inputBar: {
+    display: 'flex', gap: '0.4rem', padding: '0.6rem 0.75rem',
+    borderTop: '1px solid rgba(212,175,55,0.1)', background: 'rgba(6,5,8,0.8)',
+    flexShrink: 0,
+  },
+  input: {
+    flex: 1, padding: '0.5rem 0.7rem',
+    background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 8, outline: 'none', fontFamily: FONT.body, fontSize: '0.78rem',
+    color: COLOR.textPrimary, boxSizing: 'border-box',
+  },
+  sendBtn: {
+    width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+    background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.25)',
+    color: COLOR.gold, fontFamily: FONT.mono, fontSize: '1rem', fontWeight: 700,
+    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    transition: 'all 0.15s',
+  },
+};

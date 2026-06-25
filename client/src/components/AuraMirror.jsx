@@ -90,9 +90,12 @@ export default function AuraMirror({onClose,onBook}) {
     if(!preview) return;
     setStage('analyzing'); setError('');
     try {
+      const token = localStorage.getItem('aura_token');
+      const headers = {'Content-Type':'application/json'};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const res=await fetch(`${API}/api/mirror/analyze`,{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
+        headers,
         body:JSON.stringify({ imageBase64: preview.split(',')[1], gender }),
       });
       const data = await res.json();

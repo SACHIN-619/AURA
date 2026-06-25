@@ -221,6 +221,18 @@ export function requireAuth(req, res, next) {
   }
 }
 
+// Optional auth — extracts user from token if present, but allows
+// unauthenticated requests through. Used for features accessible to
+// guests (Mirror) that optionally award XP to logged-in users.
+export function optionalAuth(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (token && JWT_SECRET) {
+    try { req.user = jwt.verify(token, JWT_SECRET); } catch { /* guest */ }
+  }
+  next();
+}
+
 // Middleware — must be used AFTER requireAuth. Blocks non-admins from
 // reaching admin-only routes. This checks the role embedded in the verified
 // JWT, which itself reflects whatever role was on the DB document at the

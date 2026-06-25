@@ -10,6 +10,7 @@ import BookingModal from './BookingModal';
 import RatingDisplay from './RatingDisplay';
 import BookingSuccess from './BookingSuccess';
 import VerifiedListingBadge from './VerifiedListingBadge';
+import DynamicTranslate from './DynamicTranslate';
 
 export const cardVariants = {
   hidden: { opacity: 0, y: 32, scale: 0.97 },
@@ -24,6 +25,92 @@ function hav(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// ── Claim Listing Modal ───────────────────────────────────────────────────────
+function ClaimModal({ salon, onClose, onClaim }) {
+  return (
+    <motion.div
+      style={SM.overlay}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        style={SM.box}
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={SM.icon}>🏪</div>
+        <h3 style={SM.title}>Claim This Listing</h3>
+        <p style={SM.body}>
+          Are you the owner of <strong style={{ color: COLOR.gold }}>{salon.name}</strong>?
+          Claim this listing to unlock full control:
+        </p>
+        <ul style={SM.list}>
+          <li>✦ Edit business details, images &amp; pricing</li>
+          <li>✦ Respond to customer reviews</li>
+          <li>✦ Set service categories &amp; availability</li>
+          <li>✦ Receive a <strong>Verified Badge</strong> upon review</li>
+        </ul>
+        <p style={SM.note}>
+          Our team will verify ownership and grant you shop authority within 24–48 hours.
+        </p>
+        <div style={SM.actions}>
+          <button style={SM.cancelBtn} onClick={onClose}>Cancel</button>
+          <motion.button
+            style={SM.claimBtn}
+            whileHover={{ filter: 'brightness(1.1)' }}
+            whileTap={{ scale: 0.97 }}
+            onClick={onClaim}
+          >
+            ✦ Submit Claim Request
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── Schedule Haircut Login Prompt ─────────────────────────────────────────────
+function ScheduleLoginPrompt({ onClose, onLogin }) {
+  return (
+    <motion.div
+      style={SM.overlay}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        style={{ ...SM.box, maxWidth: 360 }}
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={SM.icon}>✂️</div>
+        <h3 style={SM.title}>Schedule Your Haircut</h3>
+        <p style={SM.body}>
+          Create a free account to book appointments, set reminders, and get exclusive AURA member pricing.
+        </p>
+        <div style={SM.actions}>
+          <button style={SM.cancelBtn} onClick={onClose}>Maybe later</button>
+          <motion.button
+            style={SM.claimBtn}
+            whileHover={{ filter: 'brightness(1.1)' }}
+            whileTap={{ scale: 0.97 }}
+            onClick={onLogin}
+          >
+            Log in / Sign up
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 const SalonCard = forwardRef(function SalonCard({ 
   salon, 
   idx = 0, 
@@ -31,7 +118,7 @@ const SalonCard = forwardRef(function SalonCard({
   isOwnerContext = false, 
   onEditClick 
 }, ref) {
-  const { userLocation, trackEvent, pushToast } = useAura();
+  const { userLocation, trackEvent, pushToast, user, setAuthModalOpen } = useAura();
   const { t } = useLanguage();
   const [imgFailed, setImgFailed] = useState(false);
   const [hov, setHov] = useState(false);
@@ -44,8 +131,10 @@ const SalonCard = forwardRef(function SalonCard({
   // Smart AI Mesh, Claim, & Safety States
   const [aiAnalysis, setAiAnalysis] = useState(salon.aiResearchData || null);
   const [fetchingAi, setFetchingAi] = useState(false);
+  const [showClaimModal, setShowClaimModal] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
-  const [claimMistakeWindow, setClaimMistakeWindow] = useState(false);
+  const [showSchedulePrompt, setShowSchedulePrompt] = useState(false);
+  const [showMapEmbed, setShowMapEmbed] = useState(false);
   const claimTimerRef = useRef(null);
 
   useEffect(() => {
@@ -107,7 +196,7 @@ const SalonCard = forwardRef(function SalonCard({
     }
   };
 
-  // Claim Shop verification request sequence
+  // Submit claim to backend
   const handleClaimShop = async () => {
     setIsClaiming(true);
     try {
@@ -118,39 +207,25 @@ const SalonCard = forwardRef(function SalonCard({
       });
       const data = await res.json();
       if (data.success) {
-        pushToast('Claim submitted! Track verification status in your Activity Profile.', 'info');
+        pushToast('Claim submitted! Our team will verify and grant shop authority within 24–48 hours.', 'info');
+      } else {
+        pushToast(data.message || 'Claim submission failed.', 'error');
       }
     } catch {
       pushToast('Failed initializing verification chain.', 'error');
     } finally {
       setIsClaiming(false);
-      setClaimMistakeWindow(false);
+      setShowClaimModal(false);
     }
   };
 
-  const initClaimLifecycle = (e) => {
-    e.stopPropagation();
-    if (salon.listingVerified || isClaiming) return;
-
-    if (claimMistakeWindow) {
-      // If clicked while the undo window is active, it manual-triggers immediate dispatch
-      if (claimTimerRef.current) clearTimeout(claimTimerRef.current);
-      handleClaimShop();
+  // Schedule haircut — prompt login if guest
+  const handleSchedule = () => {
+    if (user) {
+      setShowBook(true);
     } else {
-      setClaimMistakeWindow(true);
-      pushToast('Claim initialized. 4s safety buffer open to Undo.', 'info');
-      
-      claimTimerRef.current = setTimeout(() => {
-        handleClaimShop();
-      }, 4000);
+      setShowSchedulePrompt(true);
     }
-  };
-
-  const cancelClaimLifecycle = (e) => {
-    e.stopPropagation();
-    if (claimTimerRef.current) clearTimeout(claimTimerRef.current);
-    setClaimMistakeWindow(false);
-    pushToast('Boutique verification claim aborted safely.', 'warning');
   };
 
   return (
@@ -185,12 +260,14 @@ const SalonCard = forwardRef(function SalonCard({
           <div style={S.fade}/>
 
           {categories.length > 0 && (
-            <span style={S.categoryChip}>{(CATEGORY_LABELS[categories[0]] || categories[0]).toUpperCase()}</span>
+            <span style={S.categoryChip}>
+              <DynamicTranslate text={(CATEGORY_LABELS[categories[0]] || categories[0]).toUpperCase()} />
+            </span>
           )}
 
           {isMatch && <div style={S.aiBadge}>✦ AI MATCH</div>}
           
-          {/* Smart Claim Selector vs Owner Context Edit Swap */}
+          {/* Claim badge / Verified badge / Owner edit */}
           {isOwnerContext ? (
             <button 
               style={S.editIconBadge} 
@@ -201,32 +278,30 @@ const SalonCard = forwardRef(function SalonCard({
             </button>
           ) : (
             <div style={S.claimBadgeCluster}>
-              <AnimatePresence>
-                {claimMistakeWindow && (
-                  <motion.button 
-                    initial={{ scale: 0.8, opacity: 0, x: 10 }}
-                    animate={{ scale: 1, opacity: 1, x: 0 }}
-                    exit={{ scale: 0.8, opacity: 0, x: 10 }}
-                    style={S.cancelClaimBtn}
-                    onClick={cancelClaimLifecycle}
-                  >
-                    Undo ✕
-                  </motion.button>
-                )}
-              </AnimatePresence>
-              
-              <button 
-                style={{ 
-                  ...S.claimIconBadge, 
-                  color: salon.listingVerified ? COLOR.gold : claimMistakeWindow ? '#EF5350' : '#FFF2A8',
-                  borderColor: claimMistakeWindow ? '#EF5350' : 'rgba(212,175,55,0.3)'
-                }}
-                onClick={salon.listingVerified ? null : initClaimLifecycle}
-                disabled={isClaiming}
-                title={salon.listingVerified ? "Verified Node" : claimMistakeWindow ? "Click to lock in immediately" : "Claim ownership configuration profile"}
-              >
-                {salon.listingVerified ? '✦' : isClaiming ? '⟳' : claimMistakeWindow ? '✓' : '?'}
-              </button>
+              {salon.listingVerified ? (
+                // Verified — show gold verified badge (no click)
+                <div style={{ ...S.claimIconBadge, borderColor: COLOR.gold, cursor: 'default' }} title="Verified Listing">
+                  ✦
+                </div>
+              ) : (
+                // Not verified — show claim button (requires login)
+                <button
+                  style={{ ...S.claimIconBadge, color: '#FFF2A8', borderColor: 'rgba(212,175,55,0.3)' }}
+                  onClick={e => {
+                    e.stopPropagation();
+                    if (!user) {
+                      pushToast('Please log in to claim this listing.', 'warning');
+                      setAuthModalOpen?.(true);
+                      return;
+                    }
+                    setShowClaimModal(true);
+                  }}
+                  disabled={isClaiming}
+                  title="Claim this listing"
+                >
+                  {isClaiming ? '⟳' : '?'}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -234,6 +309,7 @@ const SalonCard = forwardRef(function SalonCard({
         {/* Card Data Canvas */}
         <div style={{ ...S.body, isolation: 'isolate' }}>
           <div style={S.nameRow}>
+            {/* Salon name is NEVER translated — brand identity is preserved */}
             <h2 style={S.name}>{name}</h2>
             {salon.listingVerified && <VerifiedListingBadge size={14} />}
           </div>
@@ -241,8 +317,15 @@ const SalonCard = forwardRef(function SalonCard({
           {addr && (
             <div style={S.metaRow}>
               <PinIcon size={11} />
-              <span style={S.metaText}>{addr}</span>
-              {distLabel && <span style={S.distPill}>{distLabel}</span>}
+              {/* Address parts are translated; name itself stays */}
+              <span style={S.metaText}>
+                <DynamicTranslate text={addr} />
+              </span>
+              {distLabel && (
+                <span style={S.distPill}>
+                  <DynamicTranslate text={distLabel} />
+                </span>
+              )}
             </div>
           )}
 
@@ -272,7 +355,9 @@ const SalonCard = forwardRef(function SalonCard({
           <div style={S.tags}>
             {categories.length ? (
               categories.slice(0, 3).map(cat => (
-                <span key={cat} style={S.tag}>{CATEGORY_LABELS[cat] || cat}</span>
+                <span key={cat} style={S.tag}>
+                  <DynamicTranslate text={CATEGORY_LABELS[cat] || cat} />
+                </span>
               ))
             ) : (
               <span style={S.tagMuted}>{t('card_category_unlisted')}</span>
@@ -310,6 +395,17 @@ const SalonCard = forwardRef(function SalonCard({
               </motion.button>
             ) : (
               <>
+                {/* Schedule Haircut — guest gets login prompt */}
+                <motion.button
+                  style={S.scheduleBtn}
+                  onClick={handleSchedule}
+                  whileHover={{ filter: 'brightness(1.08)' }}
+                  whileTap={{ scale: 0.97 }}
+                  title="Schedule your haircut appointment"
+                >
+                  ✂️ <span>{t('card_schedule') || 'Schedule'}</span>
+                </motion.button>
+
                 <motion.button 
                   style={S.primaryBtn} 
                   onClick={() => setShowBook(true)}
@@ -317,14 +413,14 @@ const SalonCard = forwardRef(function SalonCard({
                   whileTap={{ scale: 0.98 }}
                 >
                   <MessageIcon size={12} color="#1a1410" />
-                  <span>{t('card_contact')} / BOOK NOW</span>
+                  <span>{t('card_contact') || 'Contact'}</span>
                 </motion.button>
                 
                 <motion.button 
                   style={S.iconBtn} 
                   onClick={() => {
                     trackEvent('route_click', { salonId: salon._id, hub: salon.hub });
-                    window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                    setShowMapEmbed(true);
                   }} 
                   title={t('card_route')}
                   whileHover={{ borderColor: 'rgba(212,175,55,0.4)', backgroundColor: 'rgba(212,175,55,0.04)' }} 
@@ -338,17 +434,112 @@ const SalonCard = forwardRef(function SalonCard({
         </div>
       </motion.article>
 
+      {/* Modals */}
       <AnimatePresence>
         {showBook && <BookingModal key="bm" salon={salon} onClose={() => setShowBook(false)} onSuccess={d => { setOkData(d); setShowOk(true); }} />}
       </AnimatePresence>
       <AnimatePresence>
         {showOk && okData && <BookingSuccess key="bs" salonName={okData.salonName} hub={okData.hub} bookingDate={okData.date} bookingSlot={okData.slot} userLocation={userLocation} salonCoords={coords} viaWhatsApp={okData.viaWhatsApp} onClose={() => setShowOk(false)} />}
       </AnimatePresence>
+      <AnimatePresence>
+        {showClaimModal && (
+          <ClaimModal
+            key="claim"
+            salon={salon}
+            onClose={() => setShowClaimModal(false)}
+            onClaim={handleClaimShop}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showSchedulePrompt && (
+          <ScheduleLoginPrompt
+            key="sched"
+            onClose={() => setShowSchedulePrompt(false)}
+            onLogin={() => { setShowSchedulePrompt(false); setAuthModalOpen?.(true); }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showMapEmbed && (
+          <MapEmbedModal
+            key="map"
+            salonName={name}
+            mapsUrl={mapsUrl}
+            coords={coords}
+            onClose={() => setShowMapEmbed(false)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 });
 
 export default SalonCard;
+
+// ── Map Embed Modal ───────────────────────────────────────────────────────────
+function MapEmbedModal({ salonName, mapsUrl, coords, onClose }) {
+  const embedSrc = coords
+    ? `https://www.google.com/maps?q=${coords.lat},${coords.lon}&z=16&output=embed`
+    : `https://www.google.com/maps?q=${encodeURIComponent(salonName)}&output=embed`;
+  return (
+    <motion.div
+      style={SM.overlay}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        style={SM.mapBox}
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={SM.mapHeader}>
+          <h3 style={{ ...SM.title, marginBottom: 0, textAlign: 'left', flex: 1 }}>📍 Route to {salonName}</h3>
+          <button onClick={onClose} style={SM.cancelBtn}>✕</button>
+        </div>
+        <iframe
+          src={embedSrc}
+          style={SM.mapIframe}
+          title={`Map to ${salonName}`}
+          loading="lazy"
+          allowFullScreen
+          referrerPolicy="no-referrer-when-downgrade"
+        />
+        <div style={{ ...SM.actions, padding: '0.6rem 1rem' }}>
+          <button style={SM.cancelBtn} onClick={onClose}>Close</button>
+          <motion.button
+            style={SM.claimBtn}
+            whileHover={{ filter: 'brightness(1.1)' }}
+            onClick={() => window.open(mapsUrl, '_blank', 'noopener,noreferrer')}
+          >
+            🗺 Open in Google Maps
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── Shared Modal Styles ───────────────────────────────────────────────────────
+const SM = {
+  overlay:   { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', zIndex: 9000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '5vh' },
+  box:       { background: 'rgba(13,10,19,0.98)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 16, padding: '2rem', maxWidth: 420, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.85)' },
+  icon:      { fontSize: '2rem', textAlign: 'center', marginBottom: '0.8rem' },
+  title:     { fontFamily: FONT.display, fontSize: '1.3rem', fontWeight: 500, color: COLOR.textPrimary, textAlign: 'center', marginBottom: '0.75rem' },
+  body:      { fontFamily: FONT.body, fontSize: '0.84rem', color: COLOR.textMuted, lineHeight: 1.6, marginBottom: '0.8rem' },
+  list:      { listStyle: 'none', padding: 0, margin: '0 0 0.8rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' },
+  note:      { fontFamily: FONT.mono, fontSize: '0.52rem', color: COLOR.textGhost, letterSpacing: '0.04em', marginBottom: '1.2rem', lineHeight: 1.5 },
+  actions:   { display: 'flex', gap: '0.6rem' },
+  cancelBtn: { flex: 1, padding: '0.6rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: COLOR.textMuted, fontFamily: FONT.body, fontSize: '0.78rem', cursor: 'pointer' },
+  claimBtn:  { flex: 2, padding: '0.6rem', background: 'linear-gradient(135deg,#FFF2A8,#D4AF37)', border: 'none', borderRadius: 8, color: '#1a1410', fontFamily: FONT.body, fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' },
+  mapBox:    { background: 'rgba(13,10,19,0.98)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 16, maxWidth: '80vw', width: '100%', maxHeight: '85vh', boxShadow: '0 24px 64px rgba(0,0,0,0.85)', overflow: 'hidden', display: 'flex', flexDirection: 'column' },
+  mapHeader: { display: 'flex', alignItems: 'center', padding: '0.8rem 1rem', borderBottom: '1px solid rgba(212,175,55,0.1)' },
+  mapIframe: { width: '100%', height: '60vh', border: 'none', display: 'block' },
+};
 
 const S = {
   card: { position: 'relative', background: COLOR.glass, borderRadius: 14, overflow: 'hidden', cursor: 'default', transition: 'box-shadow 0.25s, transform 0.1s ease-out', backdropFilter: 'blur(18px)', transformStyle: 'preserve-3d' },
@@ -359,15 +550,14 @@ const S = {
   categoryChip: { position: 'absolute', bottom: 10, left: 12, padding: '0.3rem 0.6rem', background: 'rgba(8,6,10,0.8)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 20, fontFamily: FONT.mono, fontSize: '0.38rem', letterSpacing: '0.12em', color: COLOR.gold, zIndex: 2 },
   aiBadge: { position: 'absolute', top: 10, left: 12, padding: '0.25rem 0.6rem', background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.4)', borderRadius: 20, fontFamily: FONT.mono, fontSize: '0.38rem', letterSpacing: '0.12em', color: COLOR.gold, zIndex: 2 },
   claimBadgeCluster: { position: 'absolute', top: 10, right: 12, display: 'flex', alignItems: 'center', gap: '0.4rem', zIndex: 2 },
-  claimIconBadge: { width: 22, height: 22, borderRadius: '50%', background: 'rgba(13,10,19,0.9)', border: '1px solid rgba(212,175,55,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT.mono, fontSize: '0.55rem', cursor: 'pointer', transition: 'all 0.2s' },
-  cancelClaimBtn: { background: 'rgba(239,83,80,0.2)', border: '1px solid #EF5350', color: '#EF5350', borderRadius: 6, padding: '0.15rem 0.4rem', fontSize: '0.5rem', fontFamily: FONT.mono, cursor: 'pointer' },
+  claimIconBadge: { width: 22, height: 22, borderRadius: '50%', background: 'rgba(13,10,19,0.9)', border: '1px solid rgba(212,175,55,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT.mono, fontSize: '0.55rem', cursor: 'pointer', transition: 'all 0.2s', color: COLOR.gold },
   editIconBadge: { position: 'absolute', top: 10, right: 12, width: 26, height: 26, borderRadius: '50%', background: 'rgba(13,10,19,0.9)', border: `1px solid ${COLOR.gold}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '0.75rem', zIndex: 2 },
   body: { padding: '1.1rem 1.2rem' },
   nameRow: { display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' },
   name: { fontFamily: FONT.display, fontSize: '1.25rem', fontWeight: 500, fontStyle: 'italic', color: COLOR.textPrimary, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   metaRow: { display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' },
   metaText: { fontFamily: FONT.body, fontSize: '0.74rem', color: COLOR.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 },
-  distPill: { fontFamily: FONT.mono, fontSize: '0.36rem', color: 'rgba(100,200,255,0.9)', padding: '0.1rem 0.35rem', border: '1px solid rgba(100,200,255,0.2)', borderRadius: 8 },
+  distPill: { fontFamily: FONT.mono, fontSize: '0.68rem', fontWeight: 600, color: 'rgba(100,200,255,0.95)', padding: '0.18rem 0.5rem', border: '1px solid rgba(100,200,255,0.25)', borderRadius: 10, background: 'rgba(100,200,255,0.06)' },
   statusRow: { display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' },
   statusDot: { width: 5, height: 5, borderRadius: '50%', background: 'currentColor', flexShrink: 0 },
   statusText: { fontFamily: FONT.body, fontSize: '0.7rem' },
@@ -385,8 +575,9 @@ const S = {
   contactRow: { display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' },
   contactItem: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: '50%', background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.15)' },
   priceNote: { fontFamily: FONT.body, fontSize: '0.64rem', color: COLOR.textGhost, marginLeft: 'auto' },
-  actions: { display: 'flex', gap: '0.45rem', width: '100%' },
+  actions: { display: 'flex', gap: '0.4rem', width: '100%' },
   dashboardBtn: { flex: 1, padding: '0.55rem 0.75rem', background: 'rgba(212,175,55,0.06)', border: `1px solid ${COLOR.goldDim}`, color: COLOR.gold, borderRadius: 8, fontFamily: FONT.body, fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' },
+  scheduleBtn: { display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.5rem 0.65rem', background: 'rgba(212,175,55,0.06)', border: `1px solid ${COLOR.goldDim}`, borderRadius: 8, fontFamily: FONT.body, fontSize: '0.68rem', fontWeight: 600, color: COLOR.gold, cursor: 'pointer', whiteSpace: 'nowrap' },
   primaryBtn: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', padding: '0.55rem 0.75rem', background: 'linear-gradient(135deg,#FFF2A8,#D4AF37)', border: 'none', borderRadius: 8, fontFamily: FONT.body, fontSize: '0.72rem', fontWeight: 600, color: '#1a1410', cursor: 'pointer' },
   iconBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: 'transparent', border: `1px solid ${COLOR.edge}`, borderRadius: 8, color: COLOR.textPrimary, cursor: 'pointer' }
 };

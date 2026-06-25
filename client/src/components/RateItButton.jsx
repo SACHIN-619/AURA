@@ -1,9 +1,7 @@
-// RateItButton — animated star prompt shown ONLY when a salon has no
-// AuraVerified rating data yet. Converted from a standalone HTML/CSS demo
-// into a React + Framer Motion component matching our design system.
-// Once a salon has real ratings, this disappears and the real stars show
-// instead (see SalonCard / RatingDisplay).
-import { useState, useEffect, useRef } from 'react';
+// RateItButton — Compact inline button shown when a salon has zero ratings.
+// Animation fires ONLY on mouse hover; stays fully static otherwise.
+// Designed to sit inline beside 5 empty star outlines (see RatingDisplay).
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { COLOR, FONT } from '../utils/tokens';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
@@ -12,78 +10,90 @@ const STAR_PATH = "M50,8 L63,35 L93,39 L71,60 L76,90 L50,76 L24,90 L29,60 L7,39 
 
 export default function RateItButton({ onClick }) {
   const { t } = useLanguage();
-  const [shocked, setShocked] = useState(false);
-  const [tapping, setTapping] = useState(false);
-  const timers = useRef([]);
-
-  useEffect(() => {
-    const loop = () => {
-      // 1. finger glides to center (handled visually by CSS position below)
-      const t1 = setTimeout(() => {
-        setTapping(true);
-        setShocked(true);
-        const t2 = setTimeout(() => {
-          setShocked(false);
-          setTapping(false);
-        }, 900);
-        timers.current.push(t2);
-      }, 600);
-      timers.current.push(t1);
-      const t3 = setTimeout(loop, 3500);
-      timers.current.push(t3);
-    };
-    const start = setTimeout(loop, 1200);
-    timers.current.push(start);
-    return () => timers.current.forEach(clearTimeout);
-  }, []);
+  const [hovered, setHovered] = useState(false);
 
   return (
-    <button onClick={onClick} style={S.wrap} aria-label="Rate this salon">
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={S.wrap}
+      aria-label="Rate this salon"
+    >
+      {/* Side burst stars — appear only on hover */}
       <div style={S.canvas}>
-        {/* Side stars — pop out during the shocked state */}
-        <Star size={45} style={{ ...S.sideStar, left: -28, opacity: shocked ? 0.85 : 0, transform: shocked ? 'scale(1)' : 'scale(0.5)' }} />
-        <Star size={45} style={{ ...S.sideStar, right: -28, opacity: shocked ? 0.85 : 0, transform: shocked ? 'scale(1)' : 'scale(0.5)' }} />
-
-        {/* Lightning beams — only visible while shocked */}
-        {shocked && (
-          <div style={S.beamWrap}>
-            {Array.from({ length: 8 }, (_, i) => (
-              <div key={i} style={{ ...S.beam, transform: `translate(-50%,-100%) rotate(${i * 45}deg) translateY(-22px)` }} />
-            ))}
-          </div>
-        )}
-
-        {/* Core star */}
-        <motion.div
-          style={S.coreWrap}
-          animate={shocked ? { scale: [1.06, 1.03], x: [0, -1, 0], y: [0, 1, 0] } : { rotate: 360 }}
-          transition={shocked ? { duration: 0.25, repeat: Infinity, repeatType: 'reverse' } : { duration: 18, repeat: Infinity, ease: 'linear' }}
+        <svg viewBox="0 0 100 100" width={10} height={10}
+          style={{
+            ...S.sideStar,
+            left: -4,
+            opacity: hovered ? 0.9 : 0,
+            transform: hovered ? 'scale(1) translateX(-2px)' : 'scale(0.4) translateX(0)',
+          }}
         >
-          <Star size={68} filter={shocked ? 'drop-shadow(0 0 10px #ffd700)' : 'none'} />
-        </motion.div>
+          <path d={STAR_PATH} fill="none" stroke="#D4AF37" strokeWidth="8" strokeLinejoin="round" />
+        </svg>
+
+        {/* Core rotating star */}
+        <motion.svg
+          viewBox="0 0 100 100"
+          width={13}
+          height={13}
+          animate={hovered ? { rotate: 360 } : { rotate: 0 }}
+          transition={hovered ? { duration: 0.6, ease: 'easeInOut' } : { duration: 0 }}
+          style={{ filter: hovered ? 'drop-shadow(0 0 4px #ffd700)' : 'none', flexShrink: 0 }}
+        >
+          <path d={STAR_PATH} fill={hovered ? '#D4AF37' : 'none'} stroke="#D4AF37" strokeWidth="7" strokeLinejoin="round" />
+        </motion.svg>
+
+        <svg viewBox="0 0 100 100" width={10} height={10}
+          style={{
+            ...S.sideStar,
+            right: -4,
+            opacity: hovered ? 0.9 : 0,
+            transform: hovered ? 'scale(1) translateX(2px)' : 'scale(0.4) translateX(0)',
+          }}
+        >
+          <path d={STAR_PATH} fill="none" stroke="#D4AF37" strokeWidth="8" strokeLinejoin="round" />
+        </svg>
       </div>
 
-      <span style={S.label}>{t('rating_rate_it')}</span>
-      <span style={S.sub}>{t('rating_no_ratings')}</span>
+      <span style={{ ...S.label, color: hovered ? COLOR.gold : COLOR.textGhost }}>
+        {t('rating_rate_it') || 'Rate It'}
+      </span>
     </button>
   );
 }
 
-function Star({ size, style, filter }) {
-  return (
-    <svg viewBox="0 0 100 100" width={size} height={size} style={{ position: 'absolute', ...style, filter, transition: 'opacity 0.3s, transform 0.4s' }}>
-      <path d={STAR_PATH} fill="none" stroke="#D4AF37" strokeWidth="7" strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 const S = {
-  wrap:     { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.3rem', background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: 10, padding: '0.7rem 0.5rem', cursor: 'pointer', width: '100%' },
-  canvas:   { position: 'relative', width: 60, height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  coreWrap: { position: 'relative', width: 68, height: 68, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  sideStar: { top: 8 },
-  beamWrap: { position: 'absolute', inset: 0 },
-  beam:     { position: 'absolute', top: '50%', left: '50%', width: 3, height: 22, background: '#ffd700', boxShadow: '0 0 6px #fff, 0 0 10px #ffea00', borderRadius: 3 },
-  label:    { fontFamily: FONT.mono, fontSize: '0.46rem', letterSpacing: '0.2em', color: COLOR.gold, marginTop: '0.2rem' },
-  sub:      { fontFamily: FONT.mono, fontSize: '0.38rem', letterSpacing: '0.08em', color: COLOR.textGhost },
+  wrap: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.25rem',
+    padding: '0.2rem 0.5rem 0.2rem 0.35rem',
+    background: 'rgba(212,175,55,0.04)',
+    border: '1px solid rgba(212,175,55,0.18)',
+    borderRadius: 12,
+    cursor: 'pointer',
+    transition: 'border-color 0.2s, background 0.2s',
+    flexShrink: 0,
+  },
+  canvas: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 1,
+  },
+  sideStar: {
+    position: 'absolute',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    transition: 'opacity 0.25s, transform 0.25s',
+  },
+  label: {
+    fontFamily: FONT.mono,
+    fontSize: '0.52rem',
+    letterSpacing: '0.12em',
+    transition: 'color 0.2s',
+    whiteSpace: 'nowrap',
+  },
 };

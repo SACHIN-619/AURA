@@ -179,6 +179,19 @@ export const AuraProvider = ({children}) => {
     setPage(1);
   },[]);
 
+  const clearFilters = useCallback(()=>{
+    setActiveFilters(new Set());
+    setPage(1);
+  },[]);
+
+  const appendHub = useCallback((newHub)=>{
+    setAllHubs(prev=>{
+      const exists = prev.some(h=>(typeof h==='string'?h:h.hub)===newHub.hub);
+      if(exists) return prev;
+      return [...prev, newHub];
+    });
+  },[]);
+
   const syncHub = useCallback(async(hub)=>{
     setActiveHub(hub); setSyncing(true); setLoading(true);
     setError(null); setSalons([]); setPage(1); setAiReply(''); setAiMatchIds([]);
@@ -255,8 +268,8 @@ export const AuraProvider = ({children}) => {
     <AuraContext.Provider value={{
       allHubs, activeHub, activeCategory, setActiveCategory,
       salons: pageSalons, allFilteredSalons: filtered,
-      loading, syncing, error, activeFilters, toggleFilter, genderFilter, setGenderFilter, stats,
-      syncHub, aiSearch, pushToast, toast,
+      loading, syncing, error, activeFilters, toggleFilter, clearFilters, genderFilter, setGenderFilter, stats,
+      syncHub, appendHub, aiSearch, pushToast, toast,
       page, setPage, totalPages,
       userLocation, setUserLocation,
       aiReply, aiMatchIds,

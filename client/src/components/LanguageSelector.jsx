@@ -88,8 +88,8 @@ export default function LanguageSelector() {
 }
 
 const S = {
-  wrap:       { position: 'fixed', top: '1.2rem', right: '1.2rem', zIndex: 1900 },
-  btn:        { display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.8rem', background: 'rgba(10,8,14,0.88)', border: '1px solid rgba(212,175,55,0.25)', borderRadius: 20, backdropFilter: 'blur(20px)', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' },
+  wrap:       { position: 'relative', zIndex: 1900 },
+  btn:        { display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.8rem', background: 'rgba(10,8,14,0.88)', border: '1px solid rgba(212,175,55,0.25)', borderRadius: 20, backdropFilter: 'blur(20px)', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', whiteSpace: 'nowrap' },
   globe:      { fontSize: '0.75rem', opacity: 0.8 },
   code:       { fontFamily: FONT.body, fontSize: '0.72rem', color: COLOR.textPrimary, fontWeight: 500, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   arrow:      { fontSize: '0.6rem', color: COLOR.goldDim, transition: 'transform 0.2s ease' },

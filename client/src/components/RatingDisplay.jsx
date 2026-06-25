@@ -40,7 +40,17 @@ export default function RatingDisplay({ salon }) {
   if (stats.totalCount === 0) {
     return (
       <>
-        <RateItButton onClick={() => setShowModal(true)} />
+        <div style={S.emptyRow}>
+          {/* 5 static empty stars */}
+          {Array.from({ length: 5 }, (_, i) => (
+            <svg key={i} viewBox="0 0 100 100" width={12} height={12}>
+              <path d="M50,8 L63,35 L93,39 L71,60 L76,90 L50,76 L24,90 L29,60 L7,39 L37,35 Z"
+                fill="none" stroke="rgba(212,175,55,0.3)" strokeWidth="7" strokeLinejoin="round" />
+            </svg>
+          ))}
+          {/* Compact hover-animated Rate It button inline */}
+          <RateItButton onClick={() => setShowModal(true)} />
+        </div>
         <AnimatePresence>
           {showModal && (
             <RatingModal
@@ -53,6 +63,7 @@ export default function RatingDisplay({ salon }) {
       </>
     );
   }
+
 
   return (
     <>
@@ -110,6 +121,7 @@ function StarShape({ color }) {
 }
 
 const S = {
+  emptyRow:     { display: 'flex', alignItems: 'center', gap: '0.2rem', flexWrap: 'nowrap' },
   ratingRow:    { display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'none', border: 'none', cursor: 'pointer', padding: '0.15rem 0' },
   avgNum:       { fontFamily: FONT.body, fontSize: '0.74rem', fontWeight: 600, color: COLOR.gold },
   count:        { fontFamily: FONT.body, fontSize: '0.7rem', color: COLOR.textGhost },
