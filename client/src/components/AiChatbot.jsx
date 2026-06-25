@@ -121,9 +121,9 @@ export default function AiChatbot({ currentHub }) {
                       <div style={S.salonList}>
                         <div style={S.salonListLabel}>Recommended:</div>
                         {msg.salons.slice(0, 3).map((s, i) => (
-                          <div key={i} style={S.salonChip}>
-                            {s.name || 'Salon'}
-                          </div>
+                          <a key={i} href={`/?hub=${s.hub || ''}`} style={S.salonChip}>
+                            ✦ Book {s.name || 'Salon'}
+                          </a>
                         ))}
                       </div>
                     )}
@@ -192,7 +192,7 @@ const S = {
   // Card
   card: {
     position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 1300,
-    width: 360, height: 480, maxHeight: '70vh',
+    width: 360, height: 500, maxWidth: 'calc(100vw - 3rem)', maxHeight: '80vh',
     background: 'rgba(13,10,19,0.98)', border: '1px solid rgba(212,175,55,0.22)',
     borderRadius: 16, display: 'flex', flexDirection: 'column',
     boxShadow: '0 24px 64px rgba(0,0,0,0.85)', overflow: 'hidden',
@@ -238,12 +238,12 @@ const S = {
     borderRadius: '12px 12px 12px 2px', color: COLOR.textPrimary,
   },
   msgText: { fontFamily: FONT.body, fontSize: '0.78rem', lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap' },
-  salonList: { marginTop: '0.5rem', paddingTop: '0.4rem', borderTop: '1px solid rgba(212,175,55,0.15)' },
-  salonListLabel: { fontFamily: FONT.mono, fontSize: '0.42rem', letterSpacing: '0.1em', color: COLOR.goldDim, marginBottom: '0.3rem', textTransform: 'uppercase' },
+  salonList: { marginTop: '0.6rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(212,175,55,0.15)' },
+  salonListLabel: { fontFamily: FONT.mono, fontSize: '0.42rem', letterSpacing: '0.1em', color: COLOR.goldDim, marginBottom: '0.4rem', textTransform: 'uppercase' },
   salonChip: {
-    display: 'inline-block', padding: '0.2rem 0.5rem', margin: '0.15rem 0.2rem 0.15rem 0',
-    background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)',
-    borderRadius: 6, fontFamily: FONT.body, fontSize: '0.68rem', color: COLOR.gold,
+    display: 'block', padding: '0.4rem 0.6rem', marginBottom: '0.3rem',
+    background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))', border: '1px solid rgba(212,175,55,0.3)',
+    borderRadius: 6, fontFamily: FONT.body, fontSize: '0.7rem', color: COLOR.gold, textDecoration: 'none', textAlign: 'center', fontWeight: 'bold'
   },
   providerTag: { fontFamily: FONT.mono, fontSize: '0.38rem', color: COLOR.textGhost, marginTop: '0.3rem', textAlign: 'right' },
 

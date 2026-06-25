@@ -202,3 +202,29 @@ export const getUnverifiedListings = async (req, res) => {
     return res.status(500).json({ success: false, error: err.message });
   }
 };
+
+export const getActivityStream = async (req, res) => {
+  try {
+    const stream = await User.aggregate([
+      { $unwind: '$activityLog' },
+      { $sort: { 'activityLog.createdAt': -1 } },
+      { $limit: 100 },
+      { $project: { name: 1, email: 1, action: '$activityLog.action', metadata: '$activityLog.metadata', createdAt: '$activityLog.createdAt' } }
+    ]);
+    return res.json({ success: true, stream });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+export const getReports = async (req, res) => {
+  try {
+    const salonsWithReports = await Salon.find({ 'reports.0': { $exists: true } })
+      .select('name hub reports')
+      .populate('reports.user', 'name email')
+      .lean();
+    return res.json({ success: true, salons: salonsWithReports });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};

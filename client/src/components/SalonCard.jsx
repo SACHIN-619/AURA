@@ -346,9 +346,17 @@ const SalonCard = forwardRef(function SalonCard({
                 <span style={S.aiPricePill}>Est. Entry Price: {aiAnalysis.estimatedBasePrice || "₹500+"}</span>
               </div>
             ) : (
-              <button onClick={triggerAiEnrichment} style={S.aiEnrichBtn} disabled={fetchingAi}>
+              <motion.button 
+                onClick={triggerAiEnrichment} 
+                style={S.aiEnrichBtn} 
+                disabled={fetchingAi}
+                animate={{ scale: [1, 1.01, 1], boxShadow: ["0 0 5px rgba(212,175,55,0.1)", "0 0 15px rgba(212,175,55,0.5)", "0 0 5px rgba(212,175,55,0.1)"] }}
+                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                whileHover={{ filter: 'brightness(1.1)' }}
+                whileTap={{ scale: 0.98 }}
+              >
                 {fetchingAi ? 'Synthesizing live profiles... ⟳' : '✦ Tap to parse live AI insights & pricing'}
-              </button>
+              </motion.button>
             )}
           </div>
 
@@ -428,6 +436,34 @@ const SalonCard = forwardRef(function SalonCard({
                 >
                   <RouteIcon size={13} />
                 </motion.button>
+                <motion.button 
+                  style={{...S.iconBtn, color: '#ef4444', borderColor: 'rgba(239,68,68,0.2)'}} 
+                  onClick={async () => {
+                    if (!user) return setAuthModalOpen(true);
+                    if (window.confirm("Report this salon for inappropriate content or invalid details?")) {
+                      try {
+                        const res = await fetch(`${API}/api/salons/${salon._id}/report`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ user: user._id, reason: 'User Report', details: 'Reported via Salon Card' })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          alert('Report submitted successfully. Thank you.');
+                        } else {
+                          alert(data.error || 'Failed to submit report');
+                        }
+                      } catch (err) {
+                        alert('Error submitting report.');
+                      }
+                    }
+                  }} 
+                  title="Report this salon"
+                  whileHover={{ borderColor: 'rgba(239,68,68,0.4)', backgroundColor: 'rgba(239,68,68,0.04)' }} 
+                  whileTap={{ scale: 0.94 }}
+                >
+                  <span style={{fontSize: '0.75rem'}}>⚠️</span>
+                </motion.button>
               </>
             )}
           </div>
@@ -479,9 +515,17 @@ export default SalonCard;
 
 // ── Map Embed Modal ───────────────────────────────────────────────────────────
 function MapEmbedModal({ salonName, mapsUrl, coords, onClose }) {
+  const [mode, setMode] = useState('driving');
+  
   const embedSrc = coords
     ? `https://www.google.com/maps?q=${coords.lat},${coords.lon}&z=16&output=embed`
     : `https://www.google.com/maps?q=${encodeURIComponent(salonName)}&output=embed`;
+
+  // Determine external URL with directions mode if coords are available
+  const externalUrl = coords
+    ? `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lon}&travelmode=${mode}`
+    : mapsUrl;
+
   return (
     <motion.div
       style={SM.overlay}
@@ -499,6 +543,16 @@ function MapEmbedModal({ salonName, mapsUrl, coords, onClose }) {
       >
         <div style={SM.mapHeader}>
           <h3 style={{ ...SM.title, marginBottom: 0, textAlign: 'left', flex: 1 }}>📍 Route to {salonName}</h3>
+          <select 
+            value={mode} 
+            onChange={e => setMode(e.target.value)}
+            style={{ marginRight: '0.8rem', background: 'rgba(212,175,55,0.1)', color: COLOR.gold, border: '1px solid rgba(212,175,55,0.3)', borderRadius: '4px', padding: '0.2rem 0.5rem', fontFamily: FONT.mono, fontSize: '0.6rem', outline: 'none' }}
+          >
+            <option value="driving">🚗 Car</option>
+            <option value="walking">🚶 Walk</option>
+            <option value="bicycling">🚲 Bike</option>
+            <option value="transit">🚌 Transit</option>
+          </select>
           <button onClick={onClose} style={SM.cancelBtn}>✕</button>
         </div>
         <iframe
@@ -514,9 +568,9 @@ function MapEmbedModal({ salonName, mapsUrl, coords, onClose }) {
           <motion.button
             style={SM.claimBtn}
             whileHover={{ filter: 'brightness(1.1)' }}
-            onClick={() => window.open(mapsUrl, '_blank', 'noopener,noreferrer')}
+            onClick={() => window.open(externalUrl, '_blank', 'noopener,noreferrer')}
           >
-            🗺 Open in Google Maps
+            🗺 Navigate on Google Maps
           </motion.button>
         </div>
       </motion.div>
@@ -563,10 +617,10 @@ const S = {
   statusText: { fontFamily: FONT.body, fontSize: '0.7rem' },
   ratingWrap: { marginBottom: '0.7rem' },
   aiDrawerContainer: { background: 'rgba(0,0,0,0.2)', border: '1px dashed rgba(212,175,55,0.15)', borderRadius: 8, padding: '0.5rem', marginBottom: '0.75rem' },
-  aiEnrichBtn: { width: '100%', background: 'none', border: 'none', color: COLOR.goldDim, fontFamily: FONT.mono, fontSize: '0.38rem', textAlign: 'left', cursor: 'pointer', outline: 'none' },
+  aiEnrichBtn: { width: '100%', padding: '0.6rem', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.4)', borderRadius: 6, color: COLOR.gold, fontFamily: FONT.mono, fontSize: '0.55rem', letterSpacing: '0.1em', textAlign: 'center', cursor: 'pointer', outline: 'none', transition: 'all 0.2s ease', boxShadow: '0 0 10px rgba(212,175,55,0.2)', animation: 'pulse 2s infinite' },
   aiInsightBody: { display: 'flex', flexDirection: 'column', gap: '0.25rem' },
   aiInsightText: { fontFamily: FONT.body, fontSize: '0.68rem', color: COLOR.textMuted, margin: 0, lineHeight: 1.3 },
-  aiPricePill: { fontFamily: FONT.mono, fontSize: '0.38rem', color: COLOR.gold, alignSelf: 'flex-start' },
+  aiPricePill: { display: 'inline-block', fontFamily: FONT.mono, fontSize: '0.65rem', color: '#000', background: 'linear-gradient(135deg, #FFF2A8, #D4AF37)', padding: '0.3rem 0.6rem', borderRadius: 4, letterSpacing: '0.05em', fontWeight: 'bold' },
   tags: { display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.8rem' },
   tag: { padding: '0.25rem 0.55rem', border: '1px solid rgba(212,175,55,0.2)', borderRadius: 20, fontFamily: FONT.body, fontSize: '0.64rem', color: COLOR.gold },
   tagMuted: { fontFamily: FONT.body, fontSize: '0.64rem', color: COLOR.textGhost },

@@ -20,6 +20,8 @@ export default function AdminDashboard() {
   const [dataGaps, setDataGaps] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [unverified, setUnverified] = useState([]);
+  const [activity, setActivity] = useState([]);
+  const [reports, setReports] = useState([]);
   const [tab, setTab] = useState('overview');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -50,13 +52,15 @@ export default function AdminDashboard() {
     setLoading(true); setError('');
     try {
       const headers = { Authorization: `Bearer ${jwt}` };
-      const [ov, bk, mod, gaps, an, unv] = await Promise.all([
+      const [ov, bk, mod, gaps, an, unv, act, reps] = await Promise.all([
         fetch(`${API}/api/admin/overview`, { headers }).then(r => r.json()),
         fetch(`${API}/api/admin/bookings`, { headers }).then(r => r.json()),
         fetch(`${API}/api/admin/moderation-queue`, { headers }).then(r => r.json()),
         fetch(`${API}/api/admin/data-gaps`, { headers }).then(r => r.json()),
         fetch(`${API}/api/admin/analytics`, { headers }).then(r => r.json()),
         fetch(`${API}/api/admin/listings/unverified`, { headers }).then(r => r.json()),
+        fetch(`${API}/api/admin/activity`, { headers }).then(r => r.json()),
+        fetch(`${API}/api/admin/reports`, { headers }).then(r => r.json()),
       ]);
       if (!ov.success) throw new Error(ov.error || 'Session expired — please log in again');
       setOverview(ov.overview);
@@ -65,6 +69,8 @@ export default function AdminDashboard() {
       setDataGaps(gaps.hubs || []);
       setAnalytics(an.analytics || null);
       setUnverified(unv.salons || []);
+      setActivity(act.stream || []);
+      setReports(reps.salons || []);
     } catch (e) {
       setError(e.message);
       sessionStorage.removeItem('aura_admin_token');
@@ -132,11 +138,12 @@ export default function AdminDashboard() {
       </div>
 
       <div style={S.tabs}>
-        {['overview', 'analytics', 'moderation', 'listings', 'bookings', 'data gaps'].map(t => (
+        {['overview', 'analytics', 'moderation', 'listings', 'bookings', 'data gaps', 'activity', 'reports'].map(t => (
           <button key={t} onClick={() => setTab(t)} style={{ ...S.tab, ...(tab === t ? S.tabActive : {}) }}>
             {t.toUpperCase()}
             {t === 'moderation' && moderation?.flagged?.length > 0 && <span style={S.badge}>{moderation.flagged.length}</span>}
             {t === 'listings' && unverified.length > 0 && <span style={S.badge}>{unverified.length}</span>}
+            {t === 'reports' && reports.length > 0 && <span style={S.badge}>{reports.length}</span>}
           </button>
         ))}
       </div>
@@ -244,6 +251,44 @@ export default function AdminDashboard() {
               </div>
             </div>
           ))}
+          {dataGaps.length === 0 && <p style={S.empty}>All hubs have perfect data.</p>}
+        </div>
+      )}
+
+      {tab === 'activity' && (
+        <div style={S.table}>
+          {activity.map((a, i) => (
+            <div key={i} style={S.bookingRow}>
+              <div>
+                <div style={S.bName}>{a.action}</div>
+                <div style={S.bMeta}>{a.name} ({a.email})</div>
+              </div>
+              <div style={S.bRight}>
+                <div style={S.bMeta}>{new Date(a.createdAt).toLocaleString()}</div>
+              </div>
+            </div>
+          ))}
+          {activity.length === 0 && <p style={S.empty}>No activity recorded yet.</p>}
+        </div>
+      )}
+
+      {tab === 'reports' && (
+        <div style={S.table}>
+          {reports.map((s, i) => (
+            <div key={i} style={{...S.bookingRow, flexDirection: 'column', alignItems: 'flex-start'}}>
+              <div style={{marginBottom: '0.5rem'}}>
+                <div style={{...S.bName, fontSize: '1.2rem'}}>{s.name} <span style={S.bMeta}>({s.hub})</span></div>
+              </div>
+              {s.reports.map((r, j) => (
+                <div key={j} style={{background: 'rgba(239,68,68,0.05)', borderLeft: '2px solid #ef4444', padding: '0.5rem', marginBottom: '0.5rem', width: '100%'}}>
+                  <div style={S.bService}>Reason: {r.reason}</div>
+                  <div style={S.bMeta}>Details: {r.details}</div>
+                  <div style={S.bMeta}>Reported by: {r.user?.name || 'Unknown'} at {new Date(r.createdAt).toLocaleString()}</div>
+                </div>
+              ))}
+            </div>
+          ))}
+          {reports.length === 0 && <p style={S.empty}>No salon reports.</p>}
         </div>
       )}
     </div>

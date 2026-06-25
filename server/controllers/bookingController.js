@@ -30,7 +30,14 @@ export const createBooking = async (req,res) => {
     User.findOneAndUpdate({email:customerEmail.toLowerCase().trim()},{$set:{name:customerName.trim(),phone:customerPhone,lastActiveAt:now()},$inc:{totalBookings:1}},{upsert:true}).catch(()=>{});
     User.findOne({ email: customerEmail.toLowerCase().trim(), passwordHash: { $ne: null } })
       .select('_id')
-      .then(realAccount => { if (realAccount) awardXp(User, realAccount._id, 'booking_request_sent'); })
+      .then(realAccount => { 
+        if (realAccount) {
+          awardXp(User, realAccount._id, 'booking_request_sent'); 
+          User.findByIdAndUpdate(realAccount._id, {
+            $push: { activityLog: { action: `Booked Salon: ${salon.name}`, metadata: { salonId, service } } }
+          }).catch(()=>{});
+        }
+      })
       .catch(() => {});
     // Track analytics
     Analytics.create({salonId,hub:salon.hub,event:'booking_created',date:today(),hour:now().getHours()}).catch(()=>{});

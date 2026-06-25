@@ -10,7 +10,7 @@ import { API, useAura } from '../context/AuraContext';
 const GENDER_OPTIONS = ['Woman', 'Man', 'Non-binary', 'Prefer not to say'];
 
 export default function AuraMirror({onClose,onBook}) {
-  const { trackEvent } = useAura();
+  const { trackEvent, user, setAuthModalOpen } = useAura();
   const [stage,setStage]=useState('gender'); // gender | upload | crop | analyzing | result | error
   const [gender,setGender]=useState(null);
   const [rawImage,setRawImage]=useState(null);   // original uploaded image (data URL)
@@ -126,9 +126,21 @@ export default function AuraMirror({onClose,onBook}) {
         </div>
 
         <AnimatePresence mode="wait">
+          {!user && (
+            <motion.div key="loginPrompt" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} style={{textAlign: 'center', padding: '1rem 0'}}>
+              <p style={{fontFamily:FONT.mono,fontSize:'0.46rem',letterSpacing:'0.12em',color:COLOR.textMuted,marginBottom:'1.5rem',lineHeight:1.7}}>
+                Please log in to AURA to access the AI Mirror. We securely store your results so you can review them later.
+              </p>
+              <button 
+                style={S.primBtn} 
+                onClick={() => { onClose(); setAuthModalOpen(true); }}
+              >
+                Log In to Continue
+              </button>
+            </motion.div>
+          )}
 
-          {/* Gender context step — optional, never assumed, skippable */}
-          {stage==='gender'&&(
+          {user && stage==='gender' && (
             <motion.div key="gen" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
               <p style={{fontFamily:FONT.mono,fontSize:'0.46rem',letterSpacing:'0.12em',color:COLOR.textMuted,textAlign:'center',marginBottom:'1.1rem',lineHeight:1.7}}>
                 Help us tailor recommendations — this is optional and never shared.
@@ -142,8 +154,7 @@ export default function AuraMirror({onClose,onBook}) {
             </motion.div>
           )}
 
-          {/* Upload step */}
-          {stage==='upload'&&(
+          {user && stage==='upload' && (
             <motion.div key="up" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
               <div style={{display:'flex',gap:'0.5rem',marginBottom:'1rem'}}>
                 <div style={{...S.drop, flex:1, padding:'1.5rem 0.5rem'}} onClick={()=>fileRef.current?.click()}>

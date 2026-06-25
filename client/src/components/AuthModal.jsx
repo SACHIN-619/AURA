@@ -95,7 +95,7 @@ function Field({ label, children }) {
 }
 
 const S = {
-  ov:  { position: 'fixed', inset: 0, zIndex: 930, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem', overflowY: 'auto' },
+  ov:  { position: 'fixed', inset: 0, zIndex: 930, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '10vh 1rem 4rem 1rem', overflowY: 'auto' },
   back:{ position: 'fixed', inset: 0, background: 'rgba(3,2,4,0.88)', backdropFilter: 'blur(12px)' },
   box: { position: 'relative', width: '100%', maxWidth: 400, background: 'rgba(13,10,19,0.97)', border: '1px solid rgba(212,175,55,0.22)', borderRadius: 16, padding: 'clamp(1.2rem,5vw,1.8rem)', boxShadow: '0 30px 80px rgba(0,0,0,0.85)' },
   close:{ position: 'absolute', top: '0.9rem', right: '0.9rem', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,248,220,0.3)', cursor: 'pointer', background: 'none', border: 'none', fontSize: '0.75rem' },

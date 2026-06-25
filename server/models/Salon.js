@@ -57,7 +57,15 @@ const SalonSchema = new mongoose.Schema({
   listingVerified:   { type: Boolean, default: false },
   listingVerifiedAt: { type: Date, default: null },
   listingVerifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-  badgeType: { type: String, enum: ['AURA_VERIFIED', 'NONE'], default: 'NONE' }
+  badgeType: { type: String, enum: ['AURA_VERIFIED', 'NONE'], default: 'NONE' },
+
+  reports: [{
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reason: String,
+    details: String,
+    createdAt: { type: Date, default: Date.now },
+    status: { type: String, enum: ['pending', 'resolved', 'dismissed'], default: 'pending' }
+  }]
 }, { timestamps: true, versionKey: false });
 
 SalonSchema.index({ location: '2dsphere' });

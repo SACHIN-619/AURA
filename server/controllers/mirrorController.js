@@ -127,6 +127,27 @@ export const analyzeImage = async (req, res) => {
     if (userEmail) {
       const xp = await awardXp(User, userEmail, 'mirror_used');
       if (xp) xpAwarded = xp.xpAwarded;
+      
+      try {
+        const cloudinary = await import('cloudinary');
+        cloudinary.v2.config({
+          cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+          api_key: process.env.CLOUDINARY_API_KEY,
+          api_secret: process.env.CLOUDINARY_API_SECRET
+        });
+        
+        const uploadRes = await cloudinary.v2.uploader.upload(`data:image/jpeg;base64,${imageBase64}`, {
+          folder: 'aura_mirror_history',
+          transformation: [{ width: 512, height: 512, crop: "fill" }]
+        });
+        
+        await User.findOneAndUpdate(
+          { email: userEmail },
+          { $push: { mirrorHistory: { imageUrl: uploadRes.secure_url, result: parsed } } }
+        );
+      } catch (err) {
+        console.warn('[Mirror] Failed to upload to Cloudinary or save history:', err.message);
+      }
     }
 
     return res.json({

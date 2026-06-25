@@ -130,3 +130,37 @@ export const getHubs = async (req, res) => {
     return res.status(500).json({ success: false, error: e.message });
   }
 };
+
+export const reportSalon = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user, reason, details } = req.body;
+    
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'Must be logged in to report.' });
+    }
+
+    const salon = await Salon.findById(id);
+    if (!salon) return res.status(404).json({ success: false, error: 'Salon not found.' });
+
+    salon.reports.push({
+      user,
+      reason: reason || 'Other',
+      details: details || '',
+    });
+    
+    await salon.save();
+
+    // Log the action to User Activity Log
+    await import('../models/User.js').then(m => {
+      m.default.findByIdAndUpdate(user, {
+        $push: { activityLog: { action: `Reported Salon: ${salon.name}`, metadata: { salonId: id, reason } } }
+      }).catch(e => console.error(e));
+    });
+
+    return res.json({ success: true, message: 'Report submitted successfully.' });
+  } catch (err) {
+    console.error('Error reporting salon:', err);
+    return res.status(500).json({ success: false, error: 'Server error' });
+  }
+};

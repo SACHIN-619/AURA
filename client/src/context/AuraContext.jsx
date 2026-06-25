@@ -58,9 +58,13 @@ function auraScore(salon, uLat, uLon, matchedCategory) {
 }
 
 export function safeAddress(salon) {
+  const formatSlug = (str) => {
+    if (!str) return '';
+    return str.replace(/\./g, ', ').replace(/\b\w/g, c => c.toUpperCase());
+  };
   const a=salon?.address;
-  if(!a) return salon?.hub||'';
-  if(typeof a==='string') return a;
+  if(!a) return formatSlug(salon?.hub);
+  if(typeof a==='string') return formatSlug(a);
   return [a.suburb,a.street,a.city].filter(Boolean).join(', ');
 }
 

@@ -21,6 +21,17 @@ const UserSchema = new mongoose.Schema({
   xp:    { type: Number, default: 0 },
   level: { type: Number, default: 1 },
   hasUsedAiSearch: { type: Boolean, default: false },
+  
+  activityLog: [{
+    action: String,
+    metadata: mongoose.Schema.Types.Mixed,
+    createdAt: { type: Date, default: Date.now }
+  }],
+  mirrorHistory: [{
+    imageUrl: String,
+    result: mongoose.Schema.Types.Mixed,
+    createdAt: { type: Date, default: Date.now }
+  }]
 }, { timestamps: true, versionKey: false });
 
 UserSchema.methods.setPassword = async function (plain) {
