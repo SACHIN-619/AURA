@@ -30,27 +30,33 @@ const FONT_SCALES = [
 
 function TextScaleControls({ scale, setScale }) {
   return (
-    <div style={S.scaleWrap}>
-      {FONT_SCALES.map(({ label, value }) => {
-        const active = Math.abs(scale - value) < 0.01;
-        return (
-          <button
-            key={label}
-            onClick={() => {
-              setScale(value);
-              document.documentElement.style.setProperty('--font-scale', String(value));
-            }}
-            style={{
-              ...S.scaleBtn,
-              ...(active ? S.scaleBtnActive : {}),
-              fontSize: label === 'A' ? '0.64rem' : label === 'A+' ? '0.72rem' : '0.8rem',
-            }}
-            title={`Text size: ${label}`}
-          >
+    <div style={{ display: 'flex', alignItems: 'center', borderRight: '1px solid rgba(212,175,55,0.15)', paddingRight: '0.4rem' }}>
+      <select
+        value={scale}
+        onChange={(e) => {
+          const value = parseFloat(e.target.value);
+          setScale(value);
+          document.documentElement.style.setProperty('--font-scale', String(value));
+        }}
+        style={{
+          background: 'rgba(18,14,24,0.85)',
+          border: '1px solid rgba(212,175,55,0.2)',
+          borderRadius: 4,
+          color: COLOR.textPrimary,
+          fontFamily: FONT.sans,
+          fontSize: '0.75rem',
+          padding: '0.35rem 0.2rem',
+          cursor: 'pointer',
+          outline: 'none'
+        }}
+        title="Text size"
+      >
+        {FONT_SCALES.map(({ label, value }) => (
+          <option key={label} value={value} style={{ background: COLOR.voidDeep, color: COLOR.textPrimary }}>
             {label}
-          </button>
-        );
-      })}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
@@ -144,7 +150,7 @@ function TopBar({ fontScale, setFontScale, activeHub, openOnboarding }) {
       <button style={{ ...S.accountBtn, padding: '0.4rem 0.8rem', background: 'transparent', border: '1px solid rgba(212,175,55,0.3)' }} onClick={openOnboarding} title="Change Location">
         📍 {activeHub || 'Hyderabad'}
       </button>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem', justifyContent: 'flex-end' }}>
         <TextScaleControls scale={fontScale} setScale={setFontScale} />
         <LanguageSelector />
         <AccountButton />
@@ -328,7 +334,7 @@ const S = {
 
   // ── Top Bar (fixed, right-aligned row inside main) ────────────────────
   topBar: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem',
     padding: '0.6rem 1.5rem', background: 'rgba(13,10,19,0.95)', borderBottom: '1px solid rgba(212,175,55,0.15)',
     position: 'sticky', top: 0, zIndex: 1000, backdropFilter: 'blur(10px)'
   },

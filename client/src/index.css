@@ -89,6 +89,16 @@ select option{background:#0d0a13;}
 /* TopBar responsive — on narrow phones, allow wrapping */
 @media(max-width:600px){
   .main-content{ padding-top: 0 !important; margin-left: 0 !important; }
+  .chatbot-card {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    bottom: 0 !important;
+    right: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
 }
 
 /* Chatbot loading dots animation */

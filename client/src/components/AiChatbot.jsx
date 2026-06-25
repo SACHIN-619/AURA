@@ -109,11 +109,12 @@ export default function AiChatbot({ currentHub }) {
       <AnimatePresence>
         {isOpen && (
           <motion.div
+            className="chatbot-card"
             style={S.card}
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
           >
             {/* Header */}
             <div style={S.header}>
@@ -208,7 +209,7 @@ const S = {
   // Card
   card: {
     position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 1300,
-    width: 360, height: 500, maxWidth: 'calc(100vw - 3rem)', maxHeight: '80vh',
+    width: 440, height: 650, maxWidth: 'calc(100vw - 2rem)', maxHeight: '85vh',
     background: 'rgba(13,10,19,0.98)', border: '1px solid rgba(212,175,55,0.22)',
     borderRadius: 16, display: 'flex', flexDirection: 'column',
     boxShadow: '0 24px 64px rgba(0,0,0,0.85)', overflow: 'hidden',
@@ -228,8 +229,8 @@ const S = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     color: COLOR.gold, fontSize: '0.8rem', fontFamily: FONT.mono,
   },
-  headerTitle: { fontFamily: FONT.body, fontSize: '0.82rem', fontWeight: 600, color: COLOR.textPrimary },
-  headerSub: { fontFamily: FONT.mono, fontSize: '0.46rem', color: COLOR.textGhost, letterSpacing: '0.06em' },
+  headerTitle: { fontFamily: FONT.body, fontSize: '0.9rem', fontWeight: 600, color: COLOR.textPrimary },
+  headerSub: { fontFamily: FONT.mono, fontSize: '0.5rem', color: COLOR.textGhost, letterSpacing: '0.06em' },
   closeBtn: {
     width: 28, height: 28, borderRadius: 6,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -253,7 +254,7 @@ const S = {
     background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.1)',
     borderRadius: '12px 12px 12px 2px', color: COLOR.textPrimary,
   },
-  msgText: { fontFamily: FONT.body, fontSize: '0.78rem', lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap' },
+  msgText: { fontFamily: FONT.body, fontSize: '0.85rem', lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap' },
   salonList: { marginTop: '0.6rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(212,175,55,0.15)' },
   salonListLabel: { fontFamily: FONT.mono, fontSize: '0.42rem', letterSpacing: '0.1em', color: COLOR.goldDim, marginBottom: '0.4rem', textTransform: 'uppercase' },
   salonChip: {
@@ -277,9 +278,9 @@ const S = {
     flexShrink: 0,
   },
   input: {
-    flex: 1, padding: '0.5rem 0.7rem',
+    flex: 1, padding: '0.6rem 0.8rem',
     background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: 8, outline: 'none', fontFamily: FONT.body, fontSize: '0.78rem',
+    borderRadius: 8, outline: 'none', fontFamily: FONT.body, fontSize: '0.85rem',
     color: COLOR.textPrimary, boxSizing: 'border-box',
   },
   sendBtn: {
