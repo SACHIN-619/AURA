@@ -404,13 +404,13 @@ const SalonCard = forwardRef(function SalonCard({
               <>
                 {/* Schedule Haircut — guest gets login prompt */}
                 <motion.button
-                  style={S.scheduleBtn}
+                  style={S.iconBtn}
                   onClick={handleSchedule}
-                  whileHover={{ filter: 'brightness(1.08)' }}
-                  whileTap={{ scale: 0.97 }}
+                  whileHover={{ borderColor: 'rgba(212,175,55,0.4)', backgroundColor: 'rgba(212,175,55,0.04)' }}
+                  whileTap={{ scale: 0.94 }}
                   title="Schedule appointment"
                 >
-                  <ClockIcon size={12} color="#1a1410" /> <span>{t('card_schedule') || 'Schedule'}</span>
+                  <ClockIcon size={14} color={COLOR.textPrimary} />
                 </motion.button>
 
                 <motion.button 
