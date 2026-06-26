@@ -59,6 +59,9 @@ const SalonSchema = new mongoose.Schema({
   listingVerifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   badgeType: { type: String, enum: ['AURA_VERIFIED', 'NONE'], default: 'NONE' },
 
+  owner:             { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+  services:          [{ name: String, category: String, price: Number }],
+
   reports: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     reason: String,

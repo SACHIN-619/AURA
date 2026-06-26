@@ -1,6 +1,6 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import { getOverview, getRecentBookings, getModerationQueue, getDataGaps, getAnalytics, verifyListing, getUnverifiedListings, getActivityStream, getReports } from '../controllers/adminController.js';
+import { getOverview, getRecentBookings, getModerationQueue, getDataGaps, getAnalytics, verifyListing, getUnverifiedListings, getActivityStream, getReports, getUsers, updateUserRole } from '../controllers/adminController.js';
 import { requireAuth, requireAdmin } from '../controllers/authController.js';
 
 const router = express.Router();
@@ -20,5 +20,7 @@ router.get('/listings/unverified', lim, getUnverifiedListings);
 router.patch('/listings/:id/verify', lim, verifyListing);
 router.get('/activity',         lim, getActivityStream);
 router.get('/reports',          lim, getReports);
+router.get('/users',            lim, getUsers);
+router.patch('/users/:id/role',  lim, updateUserRole);
 
 export default router;

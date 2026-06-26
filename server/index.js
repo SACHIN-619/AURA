@@ -16,6 +16,7 @@ import ratingRoutes  from './routes/ratingRoutes.js';
 import adminRoutes   from './routes/adminRoutes.js';
 import authRoutes    from './routes/authRoutes.js';
 import mirrorRoutes  from './routes/mirrorRoutes.js';
+import ownerRoutes   from './routes/ownerRoutes.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = join(__dirname, '..', 'client', 'dist');
@@ -70,6 +71,7 @@ app.use('/api/ratings',  ratingRoutes);
 app.use('/api/admin',    adminRoutes);
 app.use('/api/auth',     authRoutes);
 app.use('/api/mirror',   mirrorRoutes);
+app.use('/api/owner',    ownerRoutes);
 
 // Enhanced Health Diagnostic Route
 app.get('/health', (_, res) => {

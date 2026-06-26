@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { chatQuery } from '../controllers/aiController.js';
 import { queryYourGeminiModel } from '../services/aiService.js';
 import Salon from '../models/Salon.js';
+import Translation from '../models/Translation.js';
 
 const router = express.Router();
 
@@ -50,17 +51,33 @@ router.post('/translate', async (req, res) => {
       return res.status(400).json({ success: false, error: 'text and targetLang are required' });
     }
     
+    const cleanText = text.trim();
     if (targetLang === 'en') {
-      return res.json({ success: true, translatedText: text });
+      return res.json({ success: true, translatedText: cleanText });
     }
 
+    // 1. Check if translation exists in the database
+    const existing = await Translation.findOne({ text: cleanText, lang: targetLang });
+    if (existing) {
+      return res.json({ success: true, translatedText: existing.translation });
+    }
+
+    // 2. Query AI model if not found
     const prompt = `Translate the following text into the language represented by the code "${targetLang}" (e.g. "te" is Telugu, "hi" is Hindi, "ur" is Urdu, etc.). ` +
       `Translate it naturally as a localized marketplace UI string. ` +
       `Respond with ONLY the exact translated text. Do not add markdown code blocks, quotes, formatting, or any explanations.\n\n` +
-      `Text to translate: "${text}"`;
+      `Text to translate: "${cleanText}"`;
 
     const translatedTextRaw = await queryYourGeminiModel({ prompt });
     const translatedText = translatedTextRaw.replace(/```[a-z]*\s*/gi, '').replace(/```/g, '').trim();
+
+    // 3. Save to database for permanent retrieval
+    try {
+      await Translation.create({ text: cleanText, lang: targetLang, translation: translatedText });
+    } catch (saveErr) {
+      console.warn('Failed to save translation cache to DB:', saveErr.message);
+    }
+
     res.json({ success: true, translatedText });
   } catch (error) {
     console.error('Translation error:', error);

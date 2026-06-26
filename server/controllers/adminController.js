@@ -228,3 +228,40 @@ export const getReports = async (req, res) => {
     return res.status(500).json({ success: false, error: err.message });
   }
 };
+
+export const getUsers = async (req, res) => {
+  try {
+    const users = await User.find({})
+      .sort({ createdAt: -1 })
+      .select('name email role level xp createdAt')
+      .lean();
+    return res.json({ success: true, users });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+export const updateUserRole = async (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+  
+  if (!role || !['user', 'admin', 'owner'].includes(role)) {
+    return res.status(400).json({ success: false, error: 'Invalid or missing role. Must be user, admin, or owner.' });
+  }
+
+  try {
+    const user = await User.findByIdAndUpdate(
+      id,
+      { role },
+      { new: true }
+    ).select('name email role level xp');
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    return res.json({ success: true, user, message: 'User role updated successfully' });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};

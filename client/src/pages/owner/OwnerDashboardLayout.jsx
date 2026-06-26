@@ -1,8 +1,14 @@
 // client/pages/owner/OwnerDashboardLayout.jsx
-import { NavLink, Outlet } from 'react-router-dom';
+import { Navigate, NavLink, Outlet } from 'react-router-dom';
+import { useAura } from '../../context/AuraContext';
 import { COLOR, FONT } from '../../utils/tokens';
 
 export default function OwnerDashboardLayout() {
+  const { user } = useAura();
+
+  if (!user || (user.role !== 'owner' && user.role !== 'admin')) {
+    return <Navigate to="/" replace />;
+  }
   return (
     <div style={S.wrapper}>
       {/* Control Drawer Navigation */}

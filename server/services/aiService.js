@@ -131,6 +131,15 @@ export async function queryYourGeminiModel({ prompt }) {
     }
   }
 
+  if (process.env.KRUTRIM_API_KEY) {
+    try {
+      const text = await callKrutrim("You are a localized translation and language assistant.", prompt);
+      if (text) return text;
+    } catch (e) {
+      console.warn('[queryYourGeminiModel: Krutrim failed]:', e.message);
+    }
+  }
+
   if (prompt.includes('localize-languages')) {
     return `[{"code":"en","native":"English","label":"GLOBAL"},{"code":"te","native":"తెలుగు","label":"LOCAL"},{"code":"hi","native":"हिन्दी","label":"NATIONAL"}]`;
   }

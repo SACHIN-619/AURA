@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { COLOR, FONT } from '../../utils/tokens';
+import { API } from '../../context/AuraContext';
 
 export default function CoreBoutiqueMetrics() {
+  const [salon, setSalon] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [metrics, setMetrics] = useState({
     todayRevenue: 0,
     activeBookings: 0,
@@ -11,14 +15,52 @@ export default function CoreBoutiqueMetrics() {
   });
 
   useEffect(() => {
-    // Initial placeholder simulation matrix
-    setMetrics({
-      todayRevenue: 24500,
-      activeBookings: 14,
-      conversionRate: 68,
-      xpDistributed: 450
-    });
+    const token = localStorage.getItem('aura_token');
+    if (!token) {
+      setError('Not authenticated.');
+      setLoading(false);
+      return;
+    }
+
+    fetch(`${API}/api/owner/dashboard`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setSalon(data.salon);
+          setMetrics({
+            todayRevenue: data.metrics.confirmedRevenue,
+            activeBookings: data.metrics.activeBookings,
+            conversionRate: data.metrics.conversionRate,
+            xpDistributed: data.metrics.dynamicXp
+          });
+        } else {
+          setError(data.error || 'Failed to load business metrics.');
+        }
+      })
+      .catch(err => {
+        console.error('Metrics fetch error:', err);
+        setError('Network error fetching boutique metrics.');
+      })
+      .finally(() => setLoading(false));
   }, []);
+
+  if (loading) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', fontFamily: FONT.mono, fontSize: '0.8rem', color: COLOR.textMuted }}>
+        Loading business metrics...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', fontFamily: FONT.mono, fontSize: '0.8rem', color: '#EF5350' }}>
+        {error}
+      </div>
+    );
+  }
 
   return (
     <motion.div 
@@ -27,13 +69,13 @@ export default function CoreBoutiqueMetrics() {
       style={S.container}
     >
       <div style={S.headerGrid}>
-        <h2 style={S.heading}>Core Boutique Metrics</h2>
-        <p style={S.subheading}>REAL-TIME BUSINESS ENGINE OVERVIEW</p>
+        <h2 style={S.heading}>{salon ? salon.name : 'Core Boutique Metrics'}</h2>
+        <p style={S.subheading}>REAL-TIME BUSINESS ENGINE OVERVIEW &mdash; {salon?.hub?.toUpperCase()}</p>
       </div>
 
       <div style={S.grid}>
         <div style={S.card}>
-          <span style={S.label}>TODAY'S ESTIMATED REVENUE</span>
+          <span style={S.label}>REVENUE (CONFIRMED/COMPLETED)</span>
           <span style={S.value}>₹{metrics.todayRevenue.toLocaleString('en-IN')}</span>
         </div>
         <div style={S.card}>
@@ -54,7 +96,7 @@ export default function CoreBoutiqueMetrics() {
 }
 
 const S = {
-  container: { padding: '1rem 0' },
+  container: { padding: '1rem' },
   headerGrid: { marginBottom: '2rem' },
   heading: { fontFamily: FONT.display, fontSize: '1.6rem', color: COLOR.textPrimary, margin: 0, fontWeight: 300 },
   subheading: { fontFamily: FONT.mono, fontSize: '0.55rem', color: COLOR.textMuted, letterSpacing: '0.15em', marginTop: '0.2rem' },

@@ -6,7 +6,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { COLOR, FONT, CATEGORY_FILTERS, GENDER_FILTERS } from '../utils/tokens';
 import DynamicTranslate from './DynamicTranslate';
 
-const PET_COORD_NUMBER = import.meta.env.VITE_CONCIERGE_NUMBER || '+91 90000 00000';
+const PET_COORD_NUMBER = import.meta.env.VITE_CONCIERGE_NUMBER || null;
 
 export default function GlassSidebar({ collapsed, setCollapsed }) {
   const {
@@ -21,6 +21,7 @@ export default function GlassSidebar({ collapsed, setCollapsed }) {
     loading,
     trackEvent,
     pushToast,
+    user,
   } = useAura();
 
   const { t } = useLanguage();
@@ -90,6 +91,18 @@ export default function GlassSidebar({ collapsed, setCollapsed }) {
           </button>
           <div style={S.collapsedBrand}>A</div>
           <div style={S.collapsedDivider} />
+          {(user?.role === 'owner' || user?.role === 'admin') && (
+            <>
+              <button
+                onClick={() => window.location.href = '/owner/dashboard'}
+                style={{ ...S.collapsedHubBtn, borderColor: COLOR.gold, color: COLOR.gold, background: 'rgba(212,175,55,0.08)' }}
+                title="Barber / Owner Portal"
+              >
+                💈
+              </button>
+              <div style={S.collapsedDivider} />
+            </>
+          )}
           {/* Quick hub icons */}
           {hubNames.slice(0, 6).map(hub => {
             const isActive = activeHub === hub;
@@ -125,6 +138,34 @@ export default function GlassSidebar({ collapsed, setCollapsed }) {
         <div style={S.logoText}>AURA</div>
         <div style={S.tagline}>{t('brand_tagline')}</div>
       </div>
+
+      {/* Owner Console Link */}
+      {(user?.role === 'owner' || user?.role === 'admin') && (
+        <div style={S.section}>
+          <div style={S.label}>{t('sidebar_dashboard')}</div>
+          <button
+            onClick={() => {
+              window.location.href = '/owner/dashboard';
+              setMobileOpen(false);
+            }}
+            style={{
+              ...S.genderBtn,
+              borderColor: COLOR.gold,
+              color: COLOR.gold,
+              background: 'rgba(212,175,55,0.08)',
+              fontWeight: 'bold',
+              textAlign: 'center',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.4rem',
+              cursor: 'pointer'
+            }}
+          >
+            ✦ Barber / Owner Portal
+          </button>
+        </div>
+      )}
 
       {/* Hub Selector */}
       <div style={S.section}>
@@ -250,8 +291,14 @@ export default function GlassSidebar({ collapsed, setCollapsed }) {
             >
               <p style={S.petInfoText}>
                 🐾 <strong>Pet Grooming (Phase 2)</strong><br />
-                Special Care Support Coordinator:<br />
-                <a href={`tel:${PET_COORD_NUMBER.replace(/\s/g,'')}`} style={{ color: COLOR.gold }}>{PET_COORD_NUMBER}</a>
+                {PET_COORD_NUMBER ? (
+                  <>
+                    Special Care Support Coordinator:<br />
+                    <a href={`tel:${PET_COORD_NUMBER.replace(/\s/g,'')}`} style={{ color: COLOR.gold }}>{PET_COORD_NUMBER}</a>
+                  </>
+                ) : (
+                  <span style={{ color: '#EF5350', fontSize: '0.7rem' }}>Special Care support coordinator is offline.</span>
+                )}
               </p>
               <p style={S.petNote}>
                 Human grooming focus for now. Pet services launching Phase 2.

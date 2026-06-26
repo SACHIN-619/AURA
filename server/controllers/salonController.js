@@ -1,5 +1,6 @@
 // server/controllers/salonController.js
 import Salon from '../models/Salon.js';
+import User from '../models/User.js';
 
 export const getSalons = async (req, res) => {
   try {
@@ -162,5 +163,41 @@ export const reportSalon = async (req, res) => {
   } catch (err) {
     console.error('Error reporting salon:', err);
     return res.status(500).json({ success: false, error: 'Server error' });
+  }
+};
+
+export const claimSalon = async (req, res) => {
+  try {
+    const { salonId } = req.body;
+    if (!salonId) {
+      return res.status(400).json({ success: false, error: 'salonId is required' });
+    }
+
+    const salon = await Salon.findById(salonId);
+    if (!salon) {
+      return res.status(404).json({ success: false, error: 'Salon not found' });
+    }
+
+    if (salon.owner) {
+      return res.status(400).json({ success: false, error: 'This salon has already been claimed.' });
+    }
+
+    salon.owner = req.user.sub;
+    salon.listingVerified = true;
+    salon.listingVerifiedAt = new Date();
+    salon.listingVerifiedBy = req.user.sub;
+    salon.badgeType = 'AURA_VERIFIED';
+    await salon.save();
+
+    const user = await User.findByIdAndUpdate(
+      req.user.sub,
+      { role: 'owner' },
+      { new: true }
+    );
+
+    return res.json({ success: true, user, message: 'Salon claimed successfully! You are now set as the owner.' });
+  } catch (err) {
+    console.error('Error claiming salon:', err);
+    return res.status(500).json({ success: false, error: err.message });
   }
 };

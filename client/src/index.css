@@ -70,9 +70,9 @@ select option{background:#0d0a13;}
 @keyframes ldpulse  {0%,100%{opacity:.2;transform:scale(.8);}50%{opacity:1;transform:scale(1.2);}}
 @keyframes livepulse{0%,100%{box-shadow:0 0 4px #4CAF50;}50%{box-shadow:0 0 10px #4CAF50;}}
 @media(max-width:900px){
-  .sidebar-desktop{transform:translateX(-100%) !important;pointer-events:none;}
-  .sidebar-desktop.mobile-open{transform:translateX(0) !important;pointer-events:auto;}
-  #hamburger{display:flex !important;}
+  .sidebar-desktop{transform:translateX(-100%) !important;pointer-events:none;z-index:1100 !important;}
+  .sidebar-desktop.mobile-open{transform:translateX(0) !important;pointer-events:auto;z-index:1100 !important;}
+  #hamburger{display:flex !important;z-index:1200 !important;}
   .main-content{margin-left:0 !important;padding:4rem 0.85rem 7rem !important;}
   .salon-grid{grid-template-columns:1fr !important;}
 }

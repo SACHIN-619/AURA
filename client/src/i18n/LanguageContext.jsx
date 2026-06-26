@@ -82,8 +82,8 @@ const ENGLISH_DICT = {
 
 export function LanguageProvider({ children }) {
   const [lang, setLangState] = useState(() => localStorage.getItem('aura_lang') || 'en');
-  const [translations, setTranslations] = useState({});
-  const pendingRequests = useRef(new Set());
+  const [translations, setTranslations] = useState({}); // Shape: { [lang]: { [text]: translation } }
+  const pendingRequests = useRef(new Set()); // Keys: `${lang}:${text}`
 
   const setLang = useCallback((code) => {
     setLangState(code);
@@ -91,16 +91,15 @@ export function LanguageProvider({ children }) {
     document.documentElement.dir = code === 'ur' ? 'rtl' : 'ltr';
   }, []);
 
-  // Clear translation cache when language changes
-  useEffect(() => {
-    setTranslations({});
-    pendingRequests.current.clear();
-  }, [lang]);
-
   // Async API Translation Orchestrator for dynamic database texts
   const translateText = useCallback(async (text, targetLang = lang) => {
     if (!text || targetLang === 'en') return text;
     
+    // Check cache first
+    if (translations[targetLang] && translations[targetLang][text]) {
+      return translations[targetLang][text];
+    }
+
     try {
       const res = await fetch(`${API}/api/ai/translate`, {
         method: 'POST',
@@ -108,12 +107,22 @@ export function LanguageProvider({ children }) {
         body: JSON.stringify({ text, targetLang })
       });
       const data = await res.json();
-      return data.translatedText || text;
+      if (data.translatedText) {
+        setTranslations(prev => ({
+          ...prev,
+          [targetLang]: {
+            ...(prev[targetLang] || {}),
+            [text]: data.translatedText
+          }
+        }));
+        return data.translatedText;
+      }
+      return text;
     } catch (err) {
       console.warn("AI Translation fallback:", err);
       return text;
     }
-  }, [lang]);
+  }, [lang, translations]);
 
   // Synchronous translation hook that fetches missing translations in the background
   const t = useCallback((text) => {
@@ -122,14 +131,16 @@ export function LanguageProvider({ children }) {
       return ENGLISH_DICT[text] || text;
     }
 
-    if (translations[text]) {
-      return translations[text];
+    const langCache = translations[lang] || {};
+    if (langCache[text]) {
+      return langCache[text];
     }
 
     const englishText = ENGLISH_DICT[text] || text;
+    const reqKey = `${lang}:${text}`;
 
-    if (!pendingRequests.current.has(text)) {
-      pendingRequests.current.add(text);
+    if (!pendingRequests.current.has(reqKey)) {
+      pendingRequests.current.add(reqKey);
 
       fetch(`${API}/api/ai/translate`, {
         method: 'POST',
@@ -141,7 +152,10 @@ export function LanguageProvider({ children }) {
         if (data.success && data.translatedText) {
           setTranslations(prev => ({
             ...prev,
-            [text]: data.translatedText
+            [lang]: {
+              ...(prev[lang] || {}),
+              [text]: data.translatedText
+            }
           }));
         }
       })

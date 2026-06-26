@@ -22,6 +22,7 @@ export default function AdminDashboard() {
   const [unverified, setUnverified] = useState([]);
   const [activity, setActivity] = useState([]);
   const [reports, setReports] = useState([]);
+  const [users, setUsers] = useState([]);
   const [tab, setTab] = useState('overview');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -53,7 +54,7 @@ export default function AdminDashboard() {
     setLoading(true); setError('');
     try {
       const headers = { Authorization: `Bearer ${jwt}` };
-      const [ov, bk, mod, gaps, an, unv, act, reps] = await Promise.all([
+      const [ov, bk, mod, gaps, an, unv, act, reps, usr] = await Promise.all([
         fetch(`${API}/api/admin/overview`, { headers }).then(r => r.json()),
         fetch(`${API}/api/admin/bookings`, { headers }).then(r => r.json()),
         fetch(`${API}/api/admin/moderation-queue`, { headers }).then(r => r.json()),
@@ -62,6 +63,7 @@ export default function AdminDashboard() {
         fetch(`${API}/api/admin/listings/unverified`, { headers }).then(r => r.json()),
         fetch(`${API}/api/admin/activity`, { headers }).then(r => r.json()),
         fetch(`${API}/api/admin/reports`, { headers }).then(r => r.json()),
+        fetch(`${API}/api/admin/users`, { headers }).then(r => r.json()),
       ]);
       if (!ov.success) throw new Error(ov.error || 'Session expired — please log in again');
       setOverview(ov.overview);
@@ -72,6 +74,7 @@ export default function AdminDashboard() {
       setUnverified(unv.salons || []);
       setActivity(act.stream || []);
       setReports(reps.salons || []);
+      setUsers(usr.users || []);
     } catch (e) {
       setError(e.message);
       localStorage.removeItem('aura_token');
@@ -104,6 +107,28 @@ export default function AdminDashboard() {
       });
       fetchAll(token);
     } catch { /* acceptable for an internal tool */ }
+  };
+
+  const changeUserRole = async (userId, newRole) => {
+    try {
+      const res = await fetch(`${API}/api/admin/users/${userId}/role`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ role: newRole }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchAll(token);
+      } else {
+        alert(data.error || 'Failed to update user role');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error updating user role');
+    }
   };
 
   const logout = () => { localStorage.removeItem('aura_token'); localStorage.removeItem('aura_user'); setToken(''); window.location.href = '/'; };
@@ -140,24 +165,25 @@ export default function AdminDashboard() {
       </div>
 
       <div style={S.tabs}>
-        {['overview', 'analytics', 'moderation', 'listings', 'bookings', 'data gaps', 'activity', 'reports'].map(t => (
+        {['overview', 'analytics', 'moderation', 'listings', 'bookings', 'data gaps', 'activity', 'reports', 'users'].map(t => (
           <button key={t} onClick={() => setTab(t)} style={{ ...S.tab, ...(tab === t ? S.tabActive : {}) }}>
             {t.toUpperCase()}
             {t === 'moderation' && moderation?.flagged?.length > 0 && <span style={S.badge}>{moderation.flagged.length}</span>}
             {t === 'listings' && unverified.length > 0 && <span style={S.badge}>{unverified.length}</span>}
             {t === 'reports' && reports.length > 0 && <span style={S.badge}>{reports.length}</span>}
+            {t === 'users' && users.length > 0 && <span style={S.badge}>{users.length}</span>}
           </button>
         ))}
       </div>
 
       {tab === 'overview' && overview && (
         <div style={S.grid4}>
-          <StatCard label="TOTAL SALONS" value={overview.totalSalons} />
+          <StatCard label="TOTAL SALONS" value={overview.totalSalons} onClick={() => setTab('listings')} />
           <StatCard label="HUBS SYNCED" value={overview.totalHubs} />
-          <StatCard label="TOTAL BOOKINGS" value={overview.totalBookings} />
-          <StatCard label="TOTAL USERS" value={overview.totalUsers} />
-          <StatCard label="VISIBLE RATINGS" value={overview.totalRatings} />
-          <StatCard label="FLAGGED RATINGS" value={overview.pendingFlagged} warn={overview.pendingFlagged > 0} />
+          <StatCard label="TOTAL BOOKINGS" value={overview.totalBookings} onClick={() => setTab('bookings')} />
+          <StatCard label="TOTAL USERS" value={overview.totalUsers} onClick={() => setTab('users')} />
+          <StatCard label="VISIBLE RATINGS" value={overview.totalRatings} onClick={() => setTab('moderation')} />
+          <StatCard label="FLAGGED RATINGS" value={overview.pendingFlagged} warn={overview.pendingFlagged > 0} onClick={() => setTab('moderation')} />
           <StatCard label="% WITH CATEGORY DATA" value={`${overview.dataCoverage.withCategories}%`} />
           <StatCard label="% WITH CONTACT INFO" value={`${overview.dataCoverage.withContact}%`} />
         </div>
@@ -293,13 +319,72 @@ export default function AdminDashboard() {
           {reports.length === 0 && <p style={S.empty}>No salon reports.</p>}
         </div>
       )}
+
+      {tab === 'users' && (
+        <div style={S.table}>
+          {users.map(u => (
+            <div key={u._id} style={S.bookingRow}>
+              <div>
+                <div style={S.bName}>
+                  {u.name}
+                  <span style={{ 
+                    marginLeft: '0.5rem', 
+                    background: u.role === 'admin' ? 'rgba(239,83,80,0.15)' : u.role === 'owner' ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.05)', 
+                    color: u.role === 'admin' ? '#EF5350' : u.role === 'owner' ? COLOR.gold : COLOR.textMuted,
+                    padding: '0.1rem 0.4rem', 
+                    borderRadius: 3, 
+                    fontFamily: FONT.mono, 
+                    fontSize: '0.6rem',
+                    border: '1px solid rgba(255,255,255,0.1)'
+                  }}>
+                    {u.role.toUpperCase()}
+                  </span>
+                </div>
+                <div style={S.bMeta}>{u.email} · Level {u.level || 1} ({u.xp || 0} XP)</div>
+                <div style={S.bMeta}>Registered: {new Date(u.createdAt).toLocaleDateString()}</div>
+              </div>
+              <div style={S.bRight}>
+                <div style={{ fontFamily: FONT.mono, fontSize: '0.6rem', color: COLOR.textMuted, marginBottom: '0.4rem' }}>CHANGE ROLE</div>
+                <select
+                  value={u.role}
+                  onChange={(e) => changeUserRole(u._id, e.target.value)}
+                  style={{
+                    background: 'rgba(18,14,24,0.85)',
+                    border: '1px solid rgba(212,175,55,0.25)',
+                    borderRadius: 4,
+                    color: COLOR.textPrimary,
+                    fontFamily: FONT.sans,
+                    fontSize: '0.75rem',
+                    padding: '0.35rem 0.5rem',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="user">User</option>
+                  <option value="owner">Owner</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+          ))}
+          {users.length === 0 && <p style={S.empty}>No platform users registered.</p>}
+        </div>
+      )}
     </div>
   );
 }
 
-function StatCard({ label, value, warn }) {
+function StatCard({ label, value, warn, onClick }) {
   return (
-    <div style={{ ...S.statCard, ...(warn ? S.statCardWarn : {}) }}>
+    <div 
+      onClick={onClick}
+      style={{ 
+        ...S.statCard, 
+        ...(warn ? S.statCardWarn : {}),
+        ...(onClick ? { cursor: 'pointer', transition: 'all 0.2s' } : {})
+      }}
+      className={onClick ? "clickable-stat-card" : ""}
+    >
       <div style={S.statLabel}>{label}</div>
       <div style={{ ...S.statValue, color: warn ? '#EF5350' : COLOR.gold }}>{value}</div>
     </div>

@@ -190,7 +190,7 @@ export default function MyAccount({ onClose }) {
 
               {data.user.role === 'owner' && (
                 <div style={{ marginTop: '1rem', marginBottom: '0.5rem' }}>
-                  <button style={S.ownerBtn} onClick={() => alert('Owner Dashboard coming soon!')}>✦ Manage your shop</button>
+                  <button style={S.ownerBtn} onClick={() => { window.location.href = '/owner/dashboard'; onClose(); }}>✦ Manage your shop</button>
                 </div>
               )}
             </div>
