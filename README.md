@@ -21,8 +21,10 @@ npm run seed             # from root — syncs all 8 Hyderabad hubs from OSM
 
 ## What's inside
 
-**Discovery**
-- Location-first onboarding — asks for location permission immediately, falls back to free-text search, never silently assumes a hub. Detects when you're outside Hyderabad's service area and says so.
+**Discovery & Location Logic**
+- Location-first onboarding — asks for location permission immediately, falls back to free-text search, never silently assumes a hub.
+- AI-Powered Geocoding Fallback — When a user misspells a local place (e.g., "jubili hills"), the backend intelligently routes the query through an AI model to extract and map it to the correct regional hub.
+- Hub-Centroid Distance Calculation — Displays accurate haversine distances relative to the selected hub center, ensuring contextual relevance even if live GPS isn't used.
 - Live OSM data — real salon listings via Nominatim + Overpass API, with Ola Maps as a geocoding fallback if Nominatim fails (2-layer resilience for a critical path).
 - Real category/gender filtering from actual OpenStreetMap tags — never a fabricated priced service menu.
 
