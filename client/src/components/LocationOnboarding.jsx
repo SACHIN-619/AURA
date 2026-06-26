@@ -582,15 +582,15 @@ function SearchStage({ t, query, results, hubs, busy, setQuery, setResults, onPi
 
             setResults(combined);
 
+            setResults(combined);
+
             if (combined.length === 0) {
-              // Geocoding found results, but they were outside Hyderabad
-              setErrorMsg("We currently only serve the luxury market in Hyderabad. We'll be expanding soon!");
+              // Geocoding found things but they aren't in Hyderabad. Try AI fallback.
+              await tryAiFallback(val, localFiltered);
             }
           } else {
-            // Geocoding returned absolutely nothing
-            if (localFiltered.length === 0) {
-              setErrorMsg("We couldn't find a direct match. Try searching a nearby area or use GPS.");
-            }
+            // Geocoding returned nothing, let's try AI fallback
+            await tryAiFallback(val, localFiltered);
           }
         } catch (err) {
           console.warn('Geocoding search failed, falling back to local list:', err);
@@ -602,6 +602,26 @@ function SearchStage({ t, query, results, hubs, busy, setQuery, setResults, onPi
         }
       }
     }, 600);
+  };
+
+  const tryAiFallback = async (val, localFiltered) => {
+    try {
+      const aiRes = await fetch(`${API}/api/search/geocode-ai?q=${encodeURIComponent(val.trim())}`);
+      const aiData = await aiRes.json();
+      if (aiData.success && aiData.result?.isValid) {
+        const r = aiData.result;
+        // Check if this AI suggested hub is actually an existing hub
+        const existing = hubs.find(h => h.hub.toLowerCase() === r.hub.toLowerCase());
+        const finalHub = existing || { hub: r.hub, lat: r.lat, lon: r.lon, count: 0, isNewHub: true };
+        const combined = [...localFiltered, finalHub];
+        setResults(combined);
+        setErrorMsg('');
+      } else {
+        if (localFiltered.length === 0) setErrorMsg("We currently only serve the luxury market in Hyderabad. We'll be expanding soon!");
+      }
+    } catch (aiErr) {
+      if (localFiltered.length === 0) setErrorMsg("We currently only serve the luxury market in Hyderabad. We'll be expanding soon!");
+    }
   };
 
   return (

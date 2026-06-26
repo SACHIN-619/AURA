@@ -1,6 +1,7 @@
 // server/controllers/salonController.js
 import Salon from '../models/Salon.js';
 import User from '../models/User.js';
+import mongoose from 'mongoose';
 
 export const getSalons = async (req, res) => {
   try {
@@ -95,38 +96,42 @@ export const getHubs = async (req, res) => {
       },
     ]);
 
-    if (dbHubs.length > 0) {
-      return res.json({ success: true, data: dbHubs });
-    }
-
-    // ── 2. Fall back to ACTIVE_MARKETPLACE_HUBS env var ──────────────────────
     const envHubs = (process.env.ACTIVE_MARKETPLACE_HUBS || '')
       .split(',')
       .map(h => h.trim())
       .filter(Boolean);
 
-    if (envHubs.length > 0) {
-      // Approximate centroids for Hyderabad hubs (used only when DB is empty)
-      const CENTROID_LOOKUP = {
-        'Jubilee Hills':  { lat: 17.4322, lon: 78.4136 },
-        'Banjara Hills':  { lat: 17.4153, lon: 78.4480 },
-        'Hitech City':    { lat: 17.4474, lon: 78.3762 },
-        'Gachibowli':     { lat: 17.4401, lon: 78.3489 },
-        'Madhapur':       { lat: 17.4475, lon: 78.3908 },
-        'Kondapur':       { lat: 17.4600, lon: 78.3599 },
-        'Kukatpally':     { lat: 17.4849, lon: 78.3995 },
-        'Ameerpet':       { lat: 17.4375, lon: 78.4483 },
-      };
-      const data = envHubs.map(hub => ({
-        hub,
-        count: 0,
-        lat: CENTROID_LOOKUP[hub]?.lat ?? 17.3850,
-        lon: CENTROID_LOOKUP[hub]?.lon ?? 78.4867,
-      }));
-      return res.json({ success: true, data });
+    const CENTROID_LOOKUP = {
+      'Jubilee Hills':  { lat: 17.4322, lon: 78.4136 },
+      'Banjara Hills':  { lat: 17.4153, lon: 78.4480 },
+      'Hitech City':    { lat: 17.4474, lon: 78.3762 },
+      'Gachibowli':     { lat: 17.4401, lon: 78.3489 },
+      'Madhapur':       { lat: 17.4475, lon: 78.3908 },
+      'Kondapur':       { lat: 17.4600, lon: 78.3599 },
+      'Kukatpally':     { lat: 17.4849, lon: 78.3995 },
+      'Ameerpet':       { lat: 17.4375, lon: 78.4483 },
+    };
+
+    let finalHubs = [];
+
+    if (dbHubs.length > 0) {
+      finalHubs = [...dbHubs];
     }
 
-    return res.json({ success: true, data: [] });
+    if (envHubs.length > 0) {
+      envHubs.forEach(hubName => {
+        if (!finalHubs.some(h => h.hub.toLowerCase() === hubName.toLowerCase())) {
+          finalHubs.push({
+            hub: hubName,
+            count: 0,
+            lat: CENTROID_LOOKUP[hubName]?.lat ?? 17.3850,
+            lon: CENTROID_LOOKUP[hubName]?.lon ?? 78.4867,
+          });
+        }
+      });
+    }
+
+    return res.json({ success: true, data: finalHubs });
   } catch (e) {
     return res.status(500).json({ success: false, error: e.message });
   }
@@ -171,9 +176,11 @@ export const claimSalon = async (req, res) => {
     const userId = req.user.sub;
     const { salonId, salonName } = req.body;
 
-    // Find by ID or by name search
     let salon;
     if (salonId) {
+      if (!mongoose.Types.ObjectId.isValid(salonId)) {
+        return res.status(400).json({ success: false, error: "This salon cannot be claimed online because it uses a temporary sync ID." });
+      }
       salon = await Salon.findById(salonId);
     } else if (salonName?.trim()) {
       salon = await Salon.findOne({ name: new RegExp(salonName.trim(), 'i') });

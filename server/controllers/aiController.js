@@ -86,7 +86,7 @@ async function runSearch(p, userLocation) {
 }
 
 export const chatQuery = async (req, res) => {
-  const { message, history, userLocation, email } = req.body;
+  const { message, history, userLocation, hubContext, email } = req.body;
 
   if (!message || typeof message !== 'string' || !message.trim())
     return res.status(400).json({ success: false, error: 'message required' });
@@ -172,11 +172,19 @@ export const chatQuery = async (req, res) => {
     
     try {
       const isJunkName = (n) => !n || /^[\d\s\+\-\(\)]{7,}$/.test(n.trim()) || /^node\//i.test(n);
-      const fallbackRaw = await Salon.find({}).limit(48).lean();
-      const fallback = fallbackRaw.filter(salon => !isJunkName(salon.name)).slice(0, 12);
+      const hubFilter = hubContext ? { hub: { $regex: hubContext.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), $options: 'i' } } : {};
+      const fallbackRaw = await Salon.find(hubFilter).limit(48).lean();
+      let fallback = fallbackRaw.filter(salon => !isJunkName(salon.name)).slice(0, 12);
+      
+      if (!fallback.length && hubContext) {
+        // If nothing found in that hub, fallback to any hub
+        const secondaryRaw = await Salon.find({}).limit(48).lean();
+        fallback = secondaryRaw.filter(salon => !isJunkName(salon.name)).slice(0, 12);
+      }
+      
       return res.json({
         success: true,
-        message: `AURA Assistant is optimizing connections right now. Showing premier local salons across Hyderabad instead — explore below!`,
+        message: `AURA Assistant is optimizing connections right now. Showing premier local salons ${hubContext ? `in ${hubContext}` : 'across Hyderabad'} instead — explore below!`,
         salons: fallback, 
         count: fallback.length, 
         aiProvider: null, 

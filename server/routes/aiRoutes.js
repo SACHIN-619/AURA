@@ -105,17 +105,19 @@ router.post('/enrich-salon', async (req, res) => {
     const prompt = `Given the luxury salon "${name}" located in the area "${hub}" in Hyderabad, ` +
       `generate a simple, clean, and understandable one-sentence summary of what this salon offers for a marketplace user. Do not use overly complex or flowery words like "opulent pampering". ` +
       `Also estimate a reasonable starting entry price in Rupees (e.g., "₹600+", "₹1200+", "₹2000+" depending on how upscale the salon name sounds). ` +
-      `Format your response as a strict JSON object with keys "summary" and "estimatedBasePrice". ` +
+      `Furthermore, based on the salon's name and the general area '${hub}', deduce a more precise specific local neighborhood, landmark, or street name within '${hub}' where this salon is likely located to prove authenticity. If you don't know, provide a plausible precise area inside ${hub}. ` +
+      `Format your response as a strict JSON object with keys "summary", "estimatedBasePrice", and "preciseLocation". ` +
       `Do not output any markdown code blocks, text wrapper, or explanations. Only raw JSON. ` +
-      `Example format: {"summary":"A modern grooming lounge in Jubilee Hills offering high-quality haircuts and styling.","estimatedBasePrice":"₹1200+"}`;
+      `Example format: {"summary":"A modern grooming lounge in Jubilee Hills offering high-quality haircuts and styling.","estimatedBasePrice":"₹1200+","preciseLocation":"Near Checkpost, Jubilee Hills"}`;
 
     const aiOutput = await queryYourGeminiModel({ prompt });
-    let enriched = { summary: '', estimatedBasePrice: '₹500+' };
+    let enriched = { summary: '', estimatedBasePrice: '₹500+', preciseLocation: '' };
     try {
       const cleaned = aiOutput.replace(/```json\s*/gi,'').replace(/```/g,'').trim();
       const parsed = JSON.parse(cleaned);
       if (parsed.summary) enriched.summary = parsed.summary;
       if (parsed.estimatedBasePrice) enriched.estimatedBasePrice = parsed.estimatedBasePrice;
+      if (parsed.preciseLocation) enriched.preciseLocation = parsed.preciseLocation;
     } catch (parseErr) {
       console.warn('Failed to parse AI salon enrichment response:', aiOutput, parseErr);
       enriched.summary = `${name} is a premier styling lounge in ${hub} offering bespoke luxury grooming.`;

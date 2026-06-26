@@ -172,7 +172,10 @@ function ShopTab({ user, token }) {
     try {
       const r = await fetch(`${API}/api/salons/claim`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('aura_token') || ''}`
+        },
         body: JSON.stringify({ salonName: salonSearch }),
       });
       const d = await r.json();
@@ -190,7 +193,9 @@ function ShopTab({ user, token }) {
     try {
       const r = await fetch(`${API}/api/salons/claim`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('aura_token') || ''}`
+        }
       });
       const d = await r.json();
       setMsgOk(d.success);

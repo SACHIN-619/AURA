@@ -201,7 +201,7 @@ export default function AuraMirror({onClose,onBook}) {
           {stage==='webcam' && (
             <motion.div key="webcam" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
               <div style={{ width: '100%', borderRadius: 12, overflow: 'hidden', background: '#000', marginBottom: '1rem', position: 'relative' }}>
-                <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', display: 'block', transform: 'scaleX(-1)' }} 
+                <video autoPlay playsInline muted style={{ width: '100%', display: 'block', transform: 'scaleX(-1)' }} 
                   ref={el => { if (el) { videoRef.current = el; el.srcObject = stream; } }}
                 />
               </div>

@@ -57,6 +57,7 @@ export default function AiChatbot({ currentHub }) {
           message: userMessage,
           history: messages.slice(-6).map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' })),
           userLocation: null,
+          hubContext: currentHub,
         })
       });
 
@@ -222,7 +223,7 @@ const S = {
   // Card
   card: {
     position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 1300,
-    width: 440, height: 650, maxWidth: 'calc(100vw - 2rem)', maxHeight: '85vh',
+    width: 440, height: 650, maxWidth: 'calc(100vw - 2rem)', maxHeight: 'calc(100dvh - 3rem)',
     background: 'rgba(13,10,19,0.98)', border: '1px solid rgba(212,175,55,0.22)',
     borderRadius: 16, display: 'flex', flexDirection: 'column',
     boxShadow: '0 24px 64px rgba(0,0,0,0.85)', overflow: 'hidden',

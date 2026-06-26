@@ -163,6 +163,10 @@ const SalonCard = forwardRef(function SalonCard({
     distLabel = km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
   }
 
+  let cleanAddr = addr ? addr.replace(/,?\s*Hyderabad/gi, '').trim() : '';
+  if (cleanAddr.endsWith(',')) cleanAddr = cleanAddr.slice(0, -1);
+  const displayAddr = cleanAddr ? (cleanAddr.includes(hub) ? cleanAddr : `${cleanAddr}, ${hub}`) : hub;
+
   const mapsUrl = coords 
     ? `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lon}` 
     : `https://www.google.com/maps/search/${encodeURIComponent(name + ' ' + hub)}`;
@@ -302,7 +306,7 @@ const SalonCard = forwardRef(function SalonCard({
               <PinIcon size={11} />
               {/* Address parts are translated; name itself stays */}
               <span style={S.metaText}>
-                <DynamicTranslate text={addr.replace(/, Hyderabad/g, '')} />
+                <DynamicTranslate text={displayAddr} />
               </span>
               {distLabel && (
                 <span style={S.distPill}>
@@ -326,6 +330,9 @@ const SalonCard = forwardRef(function SalonCard({
             {aiAnalysis ? (
               <div style={S.aiInsightBody}>
                 <p style={S.aiInsightText}><ClockIcon size={12} color={COLOR.gold} /> <strong><DynamicTranslate text="AI Summary:" /></strong> <DynamicTranslate text={aiAnalysis.summary} /></p>
+                {aiAnalysis.preciseLocation && (
+                  <p style={{...S.aiInsightText, marginTop: '2px', color: COLOR.gold}}><PinIcon size={11} color={COLOR.gold} /> <strong><DynamicTranslate text="Precise Area:" /></strong> <DynamicTranslate text={aiAnalysis.preciseLocation} /></p>
+                )}
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'8px'}}>
                   <span style={S.aiPricePill}><DynamicTranslate text="Est. Entry Price:" /> <DynamicTranslate text={String(aiAnalysis.estimatedBasePrice || "₹500+")} /></span>
                   <button 

@@ -147,10 +147,11 @@ function PageHeader() {
 function TopBar({ fontScale, setFontScale, activeHub, openOnboarding }) {
   return (
     <div style={S.topBar}>
-      <button style={{ ...S.accountBtn, padding: '0.4rem 0.8rem', background: 'transparent', border: '1px solid rgba(212,175,55,0.3)' }} onClick={openOnboarding} title="Change Location">
-        📍 {activeHub || 'Hyderabad'}
-      </button>
+      <div style={{ flex: 1 }}></div> {/* Spacer to push everything right */}
       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem', justifyContent: 'flex-end' }}>
+        <button style={{ ...S.accountBtn, padding: '0.4rem 0.8rem', background: 'transparent', border: '1px solid rgba(212,175,55,0.3)' }} onClick={openOnboarding} title="Change Location">
+          📍 {activeHub || 'Hyderabad'}
+        </button>
         <TextScaleControls scale={fontScale} setScale={setFontScale} />
         <LanguageSelector />
         <AccountButton />
@@ -309,7 +310,30 @@ export default function App() {
   useEffect(() => {
     const t1 = setTimeout(() => setShowIntro(false), 1500);
     const t2 = setTimeout(() => setShowApp(true), 1600);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+
+    // Global Exit Protection (Tab close / Back button)
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = ''; 
+    };
+
+    const handlePopState = (e) => {
+      const confirmExit = window.confirm("Are you sure you want to exit AURA?");
+      if (!confirmExit) {
+        window.history.pushState(null, document.title, window.location.href);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.history.pushState(null, document.title, window.location.href);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => { 
+      clearTimeout(t1); 
+      clearTimeout(t2); 
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
   }, []);
 
   return (

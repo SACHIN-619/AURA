@@ -24,7 +24,7 @@ function toWhatsAppNumber(phone) {
 }
 
 export default function BookingModal({ salon, onClose, onSuccess }) {
-  const { pushToast } = useAura();
+  const { pushToast, user } = useAura();
   const { t } = useLanguage();
   const hasPhone = !!salon?.contact?.phone;
   const hasWeb = !!salon?.contact?.website;
@@ -32,7 +32,7 @@ export default function BookingModal({ salon, onClose, onSuccess }) {
 
   const [mode, setMode] = useState(waNumber ? 'whatsapp' : 'request');
   const [step, setStep] = useState('contact');
-  const [form, setForm] = useState({ name: '', email: '', phone: '', category: '', date: '', slot: '', notes: '' });
+  const [form, setForm] = useState({ name: user?.name || '', email: user?.email || '', phone: '', category: '', date: '', slot: '', notes: '' });
   const [errs, setErrs] = useState({});
   const [busy, setBusy] = useState(false);
 
@@ -151,7 +151,7 @@ export default function BookingModal({ salon, onClose, onSuccess }) {
         {mode === 'whatsapp' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Field label={t('booking_your_name')}>
-              <input style={S.inp} value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Priya Sharma" maxLength={60} />
+              <input style={{...S.inp, opacity: user?.name ? 0.6 : 1}} value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Priya Sharma" maxLength={60} readOnly={!!user?.name} />
             </Field>
             <Field label="Category">
               <select style={S.inp} value={form.category} onChange={e => set('category', e.target.value)}>
@@ -184,8 +184,8 @@ export default function BookingModal({ salon, onClose, onSuccess }) {
             <AnimatePresence mode="wait">
               {step === 'contact' && (
                 <motion.div key="c" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                  <Field label={`${t('booking_your_name')} *`} err={errs.name}><input style={{ ...S.inp, ...(errs.name ? S.inpErr : {}) }} value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Priya Sharma" maxLength={60} /></Field>
-                  <Field label={`${t('booking_email')} *`} err={errs.email}><input style={{ ...S.inp, ...(errs.email ? S.inpErr : {}) }} type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="you@email.com" /></Field>
+                  <Field label={`${t('booking_your_name')} *`} err={errs.name}><input style={{ ...S.inp, ...(errs.name ? S.inpErr : {}), opacity: user?.name ? 0.6 : 1 }} value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Priya Sharma" maxLength={60} readOnly={!!user?.name} /></Field>
+                  <Field label={`${t('booking_email')} *`} err={errs.email}><input style={{ ...S.inp, ...(errs.email ? S.inpErr : {}), opacity: user?.email ? 0.6 : 1 }} type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="you@email.com" readOnly={!!user?.email} /></Field>
                   <Field label="Phone (optional)"><input style={S.inp} type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+91 90000 00000" /></Field>
                   <button style={S.next} onClick={() => validateContact() && setStep('details')}>{t('booking_continue')}</button>
                 </motion.div>
@@ -251,9 +251,9 @@ export default function BookingModal({ salon, onClose, onSuccess }) {
 function Field({ label, err, children }) {
   return (
     <div style={{ marginBottom: '0.88rem', flex: 1, minWidth: '100%' }}>
-      <label style={{ display: 'block', fontFamily: FONT.mono, fontSize: '0.65rem', letterSpacing: '0.1em', color: COLOR.textMuted, marginBottom: '0.36rem' }}>{label}</label>
+      <label style={{ display: 'block', fontFamily: FONT.mono, fontSize: '0.85rem', letterSpacing: '0.05em', color: COLOR.textMuted, marginBottom: '0.4rem' }}>{label}</label>
       {children}
-      {err && <p style={{ fontFamily: FONT.mono, fontSize: '0.6rem', color: '#EF5350', marginTop: '0.22rem' }}>{err}</p>}
+      {err && <p style={{ fontFamily: FONT.mono, fontSize: '0.65rem', color: '#EF5350', marginTop: '0.22rem' }}>{err}</p>}
     </div>
   );
 }

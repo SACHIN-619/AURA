@@ -209,6 +209,16 @@ export const AuraProvider = ({children}) => {
     setActiveHub(hub); setSyncing(true); setLoading(true);
     setError(null); setSalons([]); setPage(1); setAiReply(''); setAiMatchIds([]);
     setOnboarded(true);
+
+    // Anchor distance calculations to the selected hub center instead of physical GPS
+    const hubData = allHubs.find(h => (typeof h === 'string' ? h : h.hub) === hub);
+    const loc = (hubData && hubData.lat && hubData.lon) 
+      ? { lat: hubData.lat, lon: hubData.lon, isHubAnchor: true, hubName: hub }
+      : userLocation;
+    
+    if (hubData && hubData.lat && hubData.lon) {
+      setUserLocation(loc);
+    }
     try {
       let list=[];
       try {
@@ -230,7 +240,6 @@ export const AuraProvider = ({children}) => {
         pushToast('Showing demo data — connect backend for live salons','info');
       }
 
-      const loc=userLocation;
       const ranked=[...list].sort((a,b)=>auraScore(b,loc?.lat,loc?.lon)-auraScore(a,loc?.lat,loc?.lon));
       setSalons(ranked);
       setStats({total:ranked.length});

@@ -10,10 +10,10 @@ import { COLOR, FONT } from '../utils/tokens';
 import VerifiedBadge from './VerifiedBadge';
 
 export default function RatingModal({ salon, existingReviews = [], onClose, onSubmitted }) {
-  const { pushToast } = useAura();
+  const { pushToast, user } = useAura();
   const { t } = useLanguage();
-  const [email, setEmail] = useState('');
-  const [name, setName]   = useState('');
+  const [email, setEmail] = useState(user?.email || '');
+  const [name, setName]   = useState(user?.name || '');
   const [stars, setStars] = useState(0);
   const [hoverStar, setHoverStar] = useState(0);
   const [comment, setComment] = useState('');
@@ -43,7 +43,11 @@ export default function RatingModal({ salon, existingReviews = [], onClose, onSu
     setBusy(true);
     try {
       const r = await fetch(`${API}/api/ratings`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', 
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('aura_token') || ''}`
+        },
         body: JSON.stringify({ salonId: salon._id, customerEmail: email, customerName: name, stars, comment }),
       });
       const d = await r.json();
@@ -80,10 +84,10 @@ export default function RatingModal({ salon, existingReviews = [], onClose, onSu
         </div>
 
         <Field label="Your Name *">
-          <input style={S.inp} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Priya Sharma" maxLength={60} />
+          <input style={{...S.inp, opacity: user?.name ? 0.6 : 1}} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Priya Sharma" maxLength={60} readOnly={!!user?.name} />
         </Field>
         <Field label="Email *">
-          <input style={S.inp} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com" />
+          <input style={{...S.inp, opacity: user?.email ? 0.6 : 1}} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com" readOnly={!!user?.email} />
         </Field>
 
         {/* Live, honest verification status */}
