@@ -201,9 +201,10 @@ const SalonCard = forwardRef(function SalonCard({
   const handleClaimShop = async () => {
     setIsClaiming(true);
     try {
+      const token = localStorage.getItem('aura_token');
       const res = await fetch(`${API}/api/salons/claim`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ salonId: salon._id })
       });
       const data = await res.json();

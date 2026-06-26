@@ -134,16 +134,29 @@ export default function AiChatbot({ currentHub }) {
                 <div key={idx} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: '0.6rem' }}>
                   <div style={msg.role === 'user' ? S.userBubble : S.aiBubble}>
                     <p style={S.msgText}>{msg.content}</p>
-                    {msg.salons && msg.salons.length > 0 && (
-                      <div style={S.salonList}>
-                        <div style={S.salonListLabel}>Recommended:</div>
-                        {msg.salons.slice(0, 3).map((s, i) => (
-                          <a key={i} href={`/?hub=${s.hub || ''}`} style={S.salonChip}>
-                            ✦ Book {s.name || 'Salon'}
-                          </a>
-                        ))}
-                      </div>
-                    )}
+                    {msg.salons && msg.salons.length > 0 && (() => {
+                      // Filter out salons whose "name" is actually a phone number,
+                      // a raw OSM id, or is missing — these are data gaps from OSM,
+                      // not real salon names the user should see.
+                      const isPhoneOrJunk = (n) => !n || /^[\d\s\+\-\(\)]{7,}$/.test(n.trim()) || /^node\//i.test(n);
+                      const goodSalons = msg.salons.filter(s => !isPhoneOrJunk(s.name));
+                      if (!goodSalons.length) return null;
+                      return (
+                        <div style={S.salonList}>
+                          <div style={S.salonListLabel}>✦ Recommended Salons</div>
+                          {goodSalons.slice(0, 3).map((s, i) => (
+                            <a
+                              key={i}
+                              href={`/?hub=${encodeURIComponent(s.hub || '')}`}
+                              style={S.salonChip}
+                            >
+                              <span style={{ fontWeight: 700 }}>{s.name}</span>
+                              {s.hub && <span style={{ fontWeight: 400, opacity: 0.7, fontSize: '0.62rem', display: 'block', marginTop: '0.1rem' }}>📍 {s.hub}</span>}
+                            </a>
+                          ))}
+                        </div>
+                      );
+                    })()}
                     {msg.aiProvider && (
                       <div style={S.providerTag}>via {msg.aiProvider}</div>
                     )}

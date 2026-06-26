@@ -23,12 +23,14 @@ function buildSystemPrompt(knownHubs, hasLocation) {
     ? `The user has shared their live location — if they say "near me" or similar, set searchParams.useUserLocation to true.`
     : `The user has NOT shared their location.`;
 
-  return `You are the AURA Grooming Concierge for a Hyderabad beauty/salon marketplace. You speak warmly and naturally, like a knowledgeable local friend.
+  return `You are the AURA Grooming Concierge for a Hyderabad beauty/salon marketplace. You speak warmly and naturally, like a knowledgeable local friend. You can hold a normal conversation — greet users, answer grooming questions, and give beauty tips — not just search for salons.
 
 CRITICAL RULES:
-1. AURA ONLY SERVES HYDERABAD. If a user asks for a location outside Hyderabad (e.g., Kazipet, Mumbai, Delhi, Warangal), immediately and politely inform them that AURA currently only operates within Hyderabad. Do not attempt to search or suggest alternatives outside Hyderabad.
-2. DO NOT LOOP QUESTIONS. If a user asks for a service (e.g., "bridal makeup") but does not provide a location, DO NOT ask them for their location. Instead, immediately output searchParams with the category, leaving the hub blank, and provide the salons. Provide options immediately!
-3. We do NOT have real pricing or star ratings. Never invent prices or ratings.
+1. AURA ONLY SERVES HYDERABAD. If a user asks for a location OUTSIDE Hyderabad (e.g., Mumbai, Delhi, Bangalore, USA, etc.), politely say you only cover Hyderabad and set "outOfService":true in searchParams.
+2. If the user is making GENERAL CONVERSATION (greetings, asking how you are, grooming tips, general questions NOT asking to find a salon), respond naturally AND leave searchParams as an empty object {}. Do NOT search for salons just because someone says "hi" or "how are you".
+3. Only search for salons when the user CLEARLY asks to find/book/discover/recommend a salon, barber, spa, or specific beauty service.
+4. DO NOT ask for location if the user requests a service — search all hubs instead.
+5. We do NOT have real pricing or star ratings. Never invent them.
 
 ${hubLine}
 ${locLine}
@@ -36,8 +38,8 @@ ${locLine}
 Real service categories we can filter by: ${CATEGORY_LIST}.
 
 Respond ONLY with valid JSON, no markdown:
-{"analysis":"your natural, warm reply to the user — this is what they will read","searchParams":{"hub":"exact hub name if mentioned","category":"one of the real categories above if mentioned","gender":"unisex|male|female if mentioned","useUserLocation":true}}
-If the user specifies a service without a location, DO NOT ask for location. Output searchParams with the category and let the search run.`;
+{"analysis":"your warm, natural reply — this is what the user sees","searchParams":{"hub":"hub name if salon search needed","category":"category if salon search needed","gender":"unisex|male|female if mentioned","useUserLocation":true/false,"outOfService":true/false}}
+For general conversation/greetings, searchParams must be {} (empty object).`;
 }
 
 async function runSearch(p, userLocation) {
@@ -64,14 +66,20 @@ async function runSearch(p, userLocation) {
     filter.hub = { $regex: p.hub.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), $options: 'i' };
   }
 
-  let s = await Salon.find(filter).limit(24).lean();
+  // Helper: reject OSM entries where the "name" is actually a phone number or node ID
+  const isJunkName = (n) => !n || /^[\d\s\+\-\(\)]{7,}$/.test(n.trim()) || /^node\//i.test(n);
+
+  let s = await Salon.find(filter).limit(48).lean();
+  s = s.filter(salon => !isJunkName(salon.name)).slice(0, 24);
   let usedFallback = false;
   if (!s.length && p.hub) {
-    s = await Salon.find({ hub: filter.hub }).limit(24).lean();
+    const fallbackRaw = await Salon.find({ hub: filter.hub }).limit(48).lean();
+    s = fallbackRaw.filter(salon => !isJunkName(salon.name)).slice(0, 24);
     usedFallback = s.length > 0;
   }
   if (!s.length) {
-    s = await Salon.find({}).limit(12).lean();
+    const fallbackRaw = await Salon.find({}).limit(48).lean();
+    s = fallbackRaw.filter(salon => !isJunkName(salon.name)).slice(0, 12);
     usedFallback = true;
   }
   return { salons: s, usedFallback };
@@ -104,15 +112,29 @@ export const chatQuery = async (req, res) => {
     }
 
     const params = parsed.searchParams || {};
-    const hasSearchIntent = Object.keys(params).length > 0;
+    
+    // Detect out-of-service area
+    const isOutOfService = params.outOfService === true || 
+      (params.hub && !/hyderabad|secunderabad|cyberabad|telangana|hyd/i.test(params.hub) && 
+       !knownHubs.some(kh => kh.toLowerCase() === params.hub.toLowerCase()));
+
+    // Detect pure general conversation — no salon search needed
+    // searchParams is empty {} OR only has outOfService flag
+    const searchKeys = Object.keys(params).filter(k => k !== 'outOfService' && k !== 'useUserLocation');
+    const hasSearchIntent = !isOutOfService && searchKeys.length > 0 && searchKeys.some(k => params[k]);
 
     let salons = [];
     let usedFallback = false;
-    if (hasSearchIntent) {
+
+    if (isOutOfService) {
+      salons = [];
+      params.outOfService = true;
+    } else if (hasSearchIntent) {
       const result = await runSearch(params, userLocation);
       salons = result.salons;
       usedFallback = result.usedFallback;
     }
+    // else: general conversation — salons stays []
 
     // Atomic XP update execution sequence
     let xpAwarded = 0;
@@ -149,7 +171,9 @@ export const chatQuery = async (req, res) => {
     console.warn('[AI Concierge Alert] Cascade chain fallback triggered:', e.message);
     
     try {
-      const fallback = await Salon.find({}).limit(12).lean();
+      const isJunkName = (n) => !n || /^[\d\s\+\-\(\)]{7,}$/.test(n.trim()) || /^node\//i.test(n);
+      const fallbackRaw = await Salon.find({}).limit(48).lean();
+      const fallback = fallbackRaw.filter(salon => !isJunkName(salon.name)).slice(0, 12);
       return res.json({
         success: true,
         message: `AURA Assistant is optimizing connections right now. Showing premier local salons across Hyderabad instead — explore below!`,

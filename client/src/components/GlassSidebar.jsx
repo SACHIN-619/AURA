@@ -162,7 +162,7 @@ export default function GlassSidebar({ collapsed, setCollapsed }) {
               cursor: 'pointer'
             }}
           >
-            ✦ Barber / Owner Portal
+            <DynamicTranslate text="✦ Barber / Owner Portal" />
           </button>
         </div>
       )}
@@ -290,18 +290,18 @@ export default function GlassSidebar({ collapsed, setCollapsed }) {
               style={S.petInfoBox}
             >
               <p style={S.petInfoText}>
-                🐾 <strong>Pet Grooming (Phase 2)</strong><br />
+                🐾 <strong><DynamicTranslate text="Pet Grooming (Phase 2)" /></strong><br />
                 {PET_COORD_NUMBER ? (
                   <>
-                    Special Care Support Coordinator:<br />
+                    <DynamicTranslate text="Special Care Support Coordinator" />:<br />
                     <a href={`tel:${PET_COORD_NUMBER.replace(/\s/g,'')}`} style={{ color: COLOR.gold }}>{PET_COORD_NUMBER}</a>
                   </>
                 ) : (
-                  <span style={{ color: '#EF5350', fontSize: '0.7rem' }}>Special Care support coordinator is offline.</span>
+                  <span style={{ color: '#EF5350', fontSize: '0.7rem' }}><DynamicTranslate text="Special Care support coordinator is offline." /></span>
                 )}
               </p>
               <p style={S.petNote}>
-                Human grooming focus for now. Pet services launching Phase 2.
+                <DynamicTranslate text="Human grooming focus for now. Pet services launching Phase 2." />
               </p>
             </motion.div>
           )}

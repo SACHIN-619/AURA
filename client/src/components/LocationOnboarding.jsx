@@ -383,12 +383,13 @@ import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { COLOR, FONT } from '../utils/tokens';
 
 export default function LocationOnboarding({ onComplete }) {
-  const { allHubs, syncHub, resolveNearestHub } = useAura();
+  const { allHubs, syncHub, resolveNearestHub, appendHub } = useAura();
   const { t } = useLanguage();
   const [stage, setStage] = useState('pip');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   // Ensure allHubs is an array and filter out non-string hubs
   const cleanHubs = useMemo(() => {
@@ -397,11 +398,15 @@ export default function LocationOnboarding({ onComplete }) {
       : [];
   }, [allHubs]);
 
-  const pickHub = async (hub) => {
-    if (!hub || typeof hub !== 'string') return;
+  const pickHub = async (hubObj) => {
+    if (!hubObj) return;
+    const hubName = typeof hubObj === 'string' ? hubObj : hubObj.hub;
     setBusy(true);
     try {
-      await syncHub(hub);
+      if (typeof hubObj === 'object' && hubObj.lat) {
+        appendHub(hubObj);
+      }
+      await syncHub(hubName);
       onComplete();
     } catch {
       onComplete();
@@ -413,12 +418,17 @@ export default function LocationOnboarding({ onComplete }) {
   const tryLocation = () => {
     if (!navigator.geolocation) { setStage('search'); return; }
     setStage('locating');
+    setErrorMsg('');
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
           const res = await resolveNearestHub(pos.coords.latitude, pos.coords.longitude);
-          if (res?.hub) await pickHub(res.hub);
-          else setStage('search');
+          if (res?.inServiceArea && res?.hub) {
+            await pickHub(res.hub);
+          } else {
+            setStage('search');
+            setErrorMsg("We currently only serve the luxury market in Hyderabad. Please select or search for an area in Hyderabad manually.");
+          }
         } catch {
           setStage('search');
         }
@@ -489,6 +499,8 @@ export default function LocationOnboarding({ onComplete }) {
               onBack={() => setStage('pip')}
               onSkip={skip}
               onTryLocation={tryLocation}
+              errorMsg={errorMsg}
+              setErrorMsg={setErrorMsg}
             />
           )}
         </AnimatePresence>
@@ -497,34 +509,105 @@ export default function LocationOnboarding({ onComplete }) {
   );
 }
 
-function SearchStage({ t, query, results, hubs, busy, setQuery, setResults, onPick, onBack, onSkip, onTryLocation }) {
+function SearchStage({ t, query, results, hubs, busy, setQuery, setResults, onPick, onBack, onSkip, onTryLocation, errorMsg, setErrorMsg }) {
   const debRef = useRef(null);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [searching, setSearching] = useState(false);
+
+  // Helper haversine function locally
+  const haversine = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
 
   const handleSearch = (val) => {
     setQuery(val);
     setErrorMsg('');
     clearTimeout(debRef.current);
     if (val.length < 2) { setResults([]); return; }
-    debRef.current = setTimeout(() => {
-      const isHyd = /hyderabad|hyderbad|secunderabad|secundrabad|cyberabad|telangana|hyd/i.test(val);
-      const filtered = hubs.filter(h => h.hub.toLowerCase().includes(val.toLowerCase()));
-      setResults(filtered);
+    
+    // First, filter local hubs
+    const localFiltered = hubs.filter(h => h.hub.toLowerCase().includes(val.toLowerCase()));
+    setResults(localFiltered);
 
-      if (filtered.length === 0 && val.length > 3) {
-        if (!isHyd) {
-          setErrorMsg("We currently only serve the luxury market in Hyderabad. We'll be expanding soon!");
-        } else {
-          setErrorMsg("We couldn't find a direct match. Try searching a nearby area or use GPS.");
+    debRef.current = setTimeout(async () => {
+      if (val.trim().length >= 3) {
+        setSearching(true);
+        try {
+          // Live geocoding call
+          const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val.trim())}&format=json&addressdetails=1&limit=5`;
+          const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+          const data = await res.json();
+          
+          if (data && data.length > 0) {
+            const parsedHydResults = [];
+            
+            for (const place of data) {
+              const lat = parseFloat(place.lat);
+              const lon = parseFloat(place.lon);
+              if (isNaN(lat) || isNaN(lon)) continue;
+              
+              // Calculate distance to Hyderabad center (approx 17.3850, 78.4867)
+              const dist = haversine(17.3850, 78.4867, lat, lon);
+              if (dist <= 60) {
+                const suburbName = place.address?.suburb || place.address?.neighbourhood || place.address?.city_district || place.address?.city || place.address?.town || place.address?.village || place.address?.municipality || place.display_name.split(',')[0];
+                if (suburbName) {
+                  parsedHydResults.push({
+                    hub: suburbName,
+                    lat,
+                    lon,
+                    count: 0,
+                    isNewHub: true
+                  });
+                }
+              }
+            }
+
+            // Deduplicate results by hub name
+            const seen = new Set();
+            const combined = [...localFiltered];
+            
+            // Add the local filtered hub names to seen
+            combined.forEach(h => seen.add(h.hub.toLowerCase()));
+            
+            parsedHydResults.forEach(r => {
+              const nameLower = r.hub.toLowerCase();
+              if (!seen.has(nameLower)) {
+                seen.add(nameLower);
+                combined.push(r);
+              }
+            });
+
+            setResults(combined);
+
+            if (combined.length === 0) {
+              // Geocoding found results, but they were outside Hyderabad
+              setErrorMsg("We currently only serve the luxury market in Hyderabad. We'll be expanding soon!");
+            }
+          } else {
+            // Geocoding returned absolutely nothing
+            if (localFiltered.length === 0) {
+              setErrorMsg("We couldn't find a direct match. Try searching a nearby area or use GPS.");
+            }
+          }
+        } catch (err) {
+          console.warn('Geocoding search failed, falling back to local list:', err);
+          if (localFiltered.length === 0) {
+            setErrorMsg("We couldn't find a direct match. Try searching a nearby area or use GPS.");
+          }
+        } finally {
+          setSearching(false);
         }
       }
-    }, 400);
+    }, 600);
   };
 
   return (
     <motion.div style={S.card} initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} exit={{opacity:0}}>
       <div style={S.searchBox}>
-        <span style={S.sIcon}>{busy ? '⟳' : '🔎'}</span>
+        <span style={S.sIcon}>{(busy || searching) ? '⟳' : '🔎'}</span>
         <input style={S.sInput} value={query} onChange={(e) => handleSearch(e.target.value)} placeholder={t('onboard_search_placeholder')} autoFocus />
       </div>
       
@@ -544,7 +627,7 @@ function SearchStage({ t, query, results, hubs, busy, setQuery, setResults, onPi
       {!errorMsg && (
         <div style={S.hubGrid}>
           {(results.length > 0 ? results : hubs).map((h, i) => (
-            <button key={i} style={S.hubChip} onClick={() => onPick(h.hub)}>{h.hub}</button>
+            <button key={i} style={S.hubChip} onClick={() => onPick(h)}>{h.hub}</button>
           ))}
         </div>
       )}

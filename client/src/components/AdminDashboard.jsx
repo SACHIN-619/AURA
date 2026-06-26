@@ -23,9 +23,11 @@ export default function AdminDashboard() {
   const [activity, setActivity] = useState([]);
   const [reports, setReports] = useState([]);
   const [users, setUsers] = useState([]);
+  const [claims, setClaims] = useState([]);
   const [tab, setTab] = useState('overview');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
 
   const login = async () => {
     setLoading(true); setError('');
@@ -64,6 +66,7 @@ export default function AdminDashboard() {
         fetch(`${API}/api/admin/activity`, { headers }).then(r => r.json()),
         fetch(`${API}/api/admin/reports`, { headers }).then(r => r.json()),
         fetch(`${API}/api/admin/users`, { headers }).then(r => r.json()),
+        fetch(`${API}/api/admin/claims?status=pending`, { headers }).then(r => r.json()),
       ]);
       if (!ov.success) throw new Error(ov.error || 'Session expired — please log in again');
       setOverview(ov.overview);
@@ -75,6 +78,7 @@ export default function AdminDashboard() {
       setActivity(act.stream || []);
       setReports(reps.salons || []);
       setUsers(usr.users || []);
+      setClaims(claims.claims || []);
     } catch (e) {
       setError(e.message);
       localStorage.removeItem('aura_token');
@@ -131,6 +135,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const respondToClaim = async (claimId, status, message) => {
+    try {
+      const res = await fetch(`${API}/api/admin/claims/${claimId}/respond`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status, message }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchAll(token);
+      } else {
+        alert(data.error || 'Failed to respond to claim');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error responding to claim');
+    }
+  };
+
   const logout = () => { localStorage.removeItem('aura_token'); localStorage.removeItem('aura_user'); setToken(''); window.location.href = '/'; };
 
   if (!token) {
@@ -142,11 +168,26 @@ export default function AdminDashboard() {
             style={S.keyInput} type="email" placeholder="Admin email"
             value={email} onChange={e => setEmail(e.target.value)}
           />
-          <input
-            style={S.keyInput} type="password" placeholder="Password"
-            value={password} onChange={e => setPassword(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && login()}
-          />
+          <div style={{ position: 'relative', width: '100%', marginBottom: '0.8rem' }}>
+            <input
+              style={{ ...S.keyInput, marginBottom: 0, paddingRight: '3.5rem' }} 
+              type={showPass ? 'text' : 'password'} 
+              placeholder="Password"
+              value={password} onChange={e => setPassword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && login()}
+            />
+            <button 
+              type="button" 
+              onClick={() => setShowPass(!showPass)} 
+              style={{
+                position: 'absolute', right: '0.8rem', top: '50%', transform: 'translateY(-50%)',
+                background: 'none', border: 'none', color: COLOR.textMuted, fontFamily: FONT.mono,
+                fontSize: '0.55rem', letterSpacing: '0.1em', cursor: 'pointer'
+              }}
+            >
+              {showPass ? 'HIDE' : 'SHOW'}
+            </button>
+          </div>
           <button style={S.loginBtn} onClick={login} disabled={loading}>
             {loading ? 'Checking…' : 'Log in'}
           </button>
@@ -165,13 +206,14 @@ export default function AdminDashboard() {
       </div>
 
       <div style={S.tabs}>
-        {['overview', 'analytics', 'moderation', 'listings', 'bookings', 'data gaps', 'activity', 'reports', 'users'].map(t => (
+        {['overview', 'analytics', 'claims', 'moderation', 'listings', 'bookings', 'data gaps', 'activity', 'reports', 'users'].map(t => (
           <button key={t} onClick={() => setTab(t)} style={{ ...S.tab, ...(tab === t ? S.tabActive : {}) }}>
             {t.toUpperCase()}
             {t === 'moderation' && moderation?.flagged?.length > 0 && <span style={S.badge}>{moderation.flagged.length}</span>}
             {t === 'listings' && unverified.length > 0 && <span style={S.badge}>{unverified.length}</span>}
             {t === 'reports' && reports.length > 0 && <span style={S.badge}>{reports.length}</span>}
             {t === 'users' && users.length > 0 && <span style={S.badge}>{users.length}</span>}
+            {t === 'claims' && claims.length > 0 && <span style={S.badge}>{claims.length}</span>}
           </button>
         ))}
       </div>
@@ -219,6 +261,49 @@ export default function AdminDashboard() {
           <h3 style={{ ...S.sectionTitle, marginTop: '1.5rem' }}>Low-star ratings (1–2★, for awareness)</h3>
           {moderation.lowStars.length === 0 && <p style={S.empty}>None.</p>}
           {moderation.lowStars.map(r => <RatingRow key={r._id} r={r} onModerate={moderate} />)}
+        </div>
+      )}
+
+      {tab === 'claims' && (
+        <div>
+          <h3 style={S.sectionTitle}>Pending Shop Claims ({claims.length})</h3>
+          {claims.length === 0 && <p style={S.empty}>No pending claims.</p>}
+          {claims.map(c => (
+            <div key={c._id} style={{ ...S.ratingRow, flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                <div>
+                  <div style={S.bName}>{c.user?.name} <span style={S.bMeta}>({c.user?.email})</span></div>
+                  <div style={S.bMeta}>Requested to claim salon:</div>
+                  <div style={{ ...S.bName, color: COLOR.gold, marginTop: '0.2rem' }}>{c.salon?.name || 'Unknown Salon'}</div>
+                  <div style={S.bMeta}>Hub: {c.salon?.hub || 'Unknown'}</div>
+                </div>
+                <div style={S.bRight}>
+                  <div style={S.bMeta}>{new Date(c.createdAt).toLocaleDateString()}</div>
+                  <span style={{ ...S.statusPip, color: '#90CAF9' }}>{c.status}</span>
+                </div>
+              </div>
+              <div style={{ ...S.actions, flexDirection: 'row', marginTop: '1rem' }}>
+                <button 
+                  style={{ ...S.actBtn, background: 'rgba(76,175,80,0.1)', color: '#81C784', borderColor: 'rgba(76,175,80,0.3)' }} 
+                  onClick={() => {
+                    const msg = prompt('Optional message for the user (e.g., "Welcome to Aura!"):');
+                    if (msg !== null) respondToClaim(c._id, 'approved', msg);
+                  }}
+                >
+                  ✓ Approve Claim
+                </button>
+                <button 
+                  style={{ ...S.actBtn, background: 'rgba(239,83,80,0.1)', color: '#EF9A9A', borderColor: 'rgba(239,83,80,0.3)' }} 
+                  onClick={() => {
+                    const msg = prompt('Reason for rejection (will be shown to user):');
+                    if (msg !== null) respondToClaim(c._id, 'rejected', msg || 'Could not verify ownership.');
+                  }}
+                >
+                  ✕ Reject Claim
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

@@ -1,4 +1,7 @@
-// server/services/aiService.js — Gemini → Groq → HuggingFace → Krutrim cascade
+// server/services/aiService.js — Groq → HuggingFace → Gemini → Krutrim cascade
+// Groq is tried first because it has the most generous free tier (unlimited on free plan).
+// HuggingFace is second for the same reason. Gemini has a small daily quota so it
+// comes third to avoid the "demo mode" toast after just 2–3 chat turns.
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Groq from 'groq-sdk';
 import { HfInference } from '@huggingface/inference';
@@ -11,7 +14,8 @@ const getHF     = () => { if(!_hf)    { if(!process.env.HUGGINGFACE_API_KEY) thr
 const clean = (t) => { const c=t.replace(/```json\s*/gi,'').replace(/```/g,'').trim(); try{return JSON.parse(c);}catch{} const m=c.match(/\{[\s\S]+\}/); if(!m) return null; try{return JSON.parse(m[0]);}catch{return null;} };
 
 async function callGemini(sys, msg) {
-  const models = ['gemini-pro', 'gemini-1.5-pro'];
+  // gemini-2.0-flash-lite is the current free-tier text model (2025)
+  const models = ['gemini-2.0-flash-lite', 'gemini-2.0-flash'];
   for(const m of models) {
     try {
       const model = getGemini().getGenerativeModel({model:m});
@@ -80,9 +84,9 @@ async function callKrutrim(sys, msg) {
 }
 
 const PROVIDERS = [
-  { name:'Gemini',      key:'GEMINI_API_KEY',      fn:callGemini  },
   { name:'Groq',        key:'GROQ_API_KEY',        fn:callGroq    },
   { name:'HuggingFace', key:'HUGGINGFACE_API_KEY', fn:callHF      },
+  { name:'Gemini',      key:'GEMINI_API_KEY',      fn:callGemini  },
   { name:'Krutrim',     key:'KRUTRIM_API_KEY',     fn:callKrutrim },
 ];
 
@@ -104,17 +108,11 @@ export const generateStructuredJSON = async (systemPrompt, userMessage) => {
   throw new Error(msg);
 };
 
+// queryYourGeminiModel — used for translation, language list, and salon enrichment.
+// Uses the same cascade as generateStructuredJSON but returns raw text (not parsed JSON).
+// Order: Groq first (generous free tier) → HuggingFace → Gemini → Krutrim.
 export async function queryYourGeminiModel({ prompt }) {
-  try {
-    const gemini = getGemini();
-    const model = gemini.getGenerativeModel({ model: 'gemini-pro' });
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    if (text) return text;
-  } catch (e) {
-    console.warn('[queryYourGeminiModel: Gemini failed, trying cascade]:', e.message);
-  }
-
+  // Try Groq first — most generous free tier, no daily quota issues
   if (process.env.GROQ_API_KEY) {
     try {
       const groq = getGroq();
@@ -125,21 +123,54 @@ export async function queryYourGeminiModel({ prompt }) {
         max_tokens: 1024,
       });
       const text = r.choices[0]?.message?.content;
-      if (text) return text;
+      if (text) { console.log('[queryYourGeminiModel:Groq] ✅'); return text; }
     } catch (e) {
-      console.warn('[queryYourGeminiModel: Groq failed]:', e.message);
+      console.warn('[queryYourGeminiModel:Groq]', e.message);
     }
   }
 
+  // Try HuggingFace second
+  if (process.env.HUGGINGFACE_API_KEY) {
+    try {
+      const hf = getHF();
+      const r = await hf.chatCompletion({
+        model: 'Qwen/Qwen2.5-72B-Instruct',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 1024,
+        temperature: 0.15,
+      });
+      const text = r?.choices[0]?.message?.content;
+      if (text) { console.log('[queryYourGeminiModel:HF] ✅'); return text; }
+    } catch (e) {
+      console.warn('[queryYourGeminiModel:HF]', e.message);
+    }
+  }
+
+  // Try Gemini last — small daily quota so we preserve it for urgent cases
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const gemini = getGemini();
+      // gemini-2.0-flash-lite = current free-tier model (1.5-flash/pro are 404)
+      const model = gemini.getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      if (text) { console.log('[queryYourGeminiModel:Gemini] ✅'); return text; }
+    } catch (e) {
+      console.warn('[queryYourGeminiModel:Gemini]', e.message);
+    }
+  }
+
+  // Try Krutrim as final fallback
   if (process.env.KRUTRIM_API_KEY) {
     try {
-      const text = await callKrutrim("You are a localized translation and language assistant.", prompt);
-      if (text) return text;
+      const text = await callKrutrim('You are a localized translation and language assistant.', prompt);
+      if (text) { console.log('[queryYourGeminiModel:Krutrim] ✅'); return text; }
     } catch (e) {
-      console.warn('[queryYourGeminiModel: Krutrim failed]:', e.message);
+      console.warn('[queryYourGeminiModel:Krutrim]', e.message);
     }
   }
 
+  // Static fallbacks so the UI never fully breaks
   if (prompt.includes('localize-languages')) {
     return `[{"code":"en","native":"English","label":"GLOBAL"},{"code":"te","native":"తెలుగు","label":"LOCAL"},{"code":"hi","native":"हिन्दी","label":"NATIONAL"}]`;
   }

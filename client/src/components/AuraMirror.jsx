@@ -11,16 +11,17 @@ const GENDER_OPTIONS = ['Woman', 'Man', 'Non-binary', 'Prefer not to say'];
 
 export default function AuraMirror({onClose,onBook}) {
   const { trackEvent, user, setAuthModalOpen, pushToast } = useAura();
-  const [stage,setStage]=useState('upload'); // gender | upload | crop | analyzing | result | error
+  const [stage,setStage]=useState('upload'); // gender | upload | webcam | crop | analyzing | result | error
   const [gender,setGender]=useState(null);
   const [rawImage,setRawImage]=useState(null);   // original uploaded image (data URL)
   const [preview,setPreview]=useState(null);     // cropped/final image (data URL)
   const [result,setResult]=useState(null);
   const [error,setError]=useState('');
   const fileRef=useRef();
-  const camRef=useRef();
+  const videoRef=useRef();
   const imgRef=useRef();
   const cropBoxRef=useRef();
+  const [stream, setStream] = useState(null);
 
   // Removed login requirement in useEffect so guests can use the mirror
 
@@ -51,6 +52,39 @@ export default function AuraMirror({onClose,onBook}) {
     };
     reader.readAsDataURL(file);
   };
+
+  const startWebcam = async () => {
+    setError('');
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      setStream(s);
+      setStage('webcam');
+    } catch (e) {
+      setError('Camera access denied or not available. Please upload a photo instead.');
+    }
+  };
+
+  const stopWebcam = () => {
+    if (stream) { stream.getTracks().forEach(t => t.stop()); setStream(null); }
+  };
+
+  const takeWebcamPhoto = () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(videoRef.current, 0, 0);
+    stopWebcam();
+    setRawImage(canvas.toDataURL('image/jpeg', 0.9));
+    setCropOffset({x:0,y:0});
+    setStage('crop');
+  };
+
+  // cleanup stream on unmount
+  useEffect(() => {
+    return () => stopWebcam();
+  }, [stream]);
 
   // Drag handlers for repositioning the image inside the fixed crop window
   const onDragStart=(e)=>{
@@ -154,14 +188,27 @@ export default function AuraMirror({onClose,onBook}) {
                   <div style={{fontSize:'2rem',marginBottom:'0.5rem',opacity:0.4}}>📸</div>
                   <div style={{fontFamily:FONT.display,fontSize:'1rem',color:COLOR.textPrimary}}>Upload</div>
                 </div>
-                <div style={{...S.drop, flex:1, padding:'1.5rem 0.5rem'}} onClick={()=>camRef.current?.click()}>
+                <div style={{...S.drop, flex:1, padding:'1.5rem 0.5rem'}} onClick={startWebcam}>
                   <div style={{fontSize:'2rem',marginBottom:'0.5rem',opacity:0.4}}>🤳</div>
                   <div style={{fontFamily:FONT.display,fontSize:'1rem',color:COLOR.textPrimary}}>Take Photo</div>
                 </div>
               </div>
               <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={onFile}/>
-              <input ref={camRef} type="file" accept="image/*" capture="user" style={{display:'none'}} onChange={onFile}/>
               {error&&<p style={{fontFamily:FONT.mono,fontSize:'0.8rem',color:'#EF5350',textAlign:'center',marginTop:'0.5rem'}}>{error}</p>}
+            </motion.div>
+          )}
+
+          {stage==='webcam' && (
+            <motion.div key="webcam" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
+              <div style={{ width: '100%', borderRadius: 12, overflow: 'hidden', background: '#000', marginBottom: '1rem', position: 'relative' }}>
+                <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', display: 'block', transform: 'scaleX(-1)' }} 
+                  ref={el => { if (el) { videoRef.current = el; el.srcObject = stream; } }}
+                />
+              </div>
+              <div style={{display:'flex',gap:'0.75rem'}}>
+                <button style={S.secBtn} onClick={() => { stopWebcam(); setStage('upload'); }}>Cancel</button>
+                <motion.button style={S.primBtn} onClick={takeWebcamPhoto} whileTap={{scale:0.97}}>📸 Snap Photo</motion.button>
+              </div>
             </motion.div>
           )}
 

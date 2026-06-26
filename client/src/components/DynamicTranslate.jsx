@@ -27,12 +27,14 @@ async function translateText(text, targetLang) {
       body: JSON.stringify({ text, targetLang: targetLang, context: 'location_category_ui' }),
     });
     const data = await res.json();
-    const result = data.translatedText || text;
-    memCache[key] = result;
-    try { sessionStorage.setItem(`dt_${key}`, result); } catch {}
-    return result;
+    if (data.success && data.translatedText) {
+      memCache[key] = data.translatedText;
+      try { sessionStorage.setItem(`dt_${key}`, data.translatedText); } catch {}
+      return data.translatedText;
+    }
+    return text; // Do not cache failures
   } catch {
-    return text; // graceful fallback — return original
+    return text; // Do not cache failures
   }
 }
 

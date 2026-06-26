@@ -168,36 +168,93 @@ export const reportSalon = async (req, res) => {
 
 export const claimSalon = async (req, res) => {
   try {
-    const { salonId } = req.body;
-    if (!salonId) {
-      return res.status(400).json({ success: false, error: 'salonId is required' });
+    const userId = req.user.sub;
+    const { salonId, salonName } = req.body;
+
+    // Find by ID or by name search
+    let salon;
+    if (salonId) {
+      salon = await Salon.findById(salonId);
+    } else if (salonName?.trim()) {
+      salon = await Salon.findOne({ name: new RegExp(salonName.trim(), 'i') });
     }
 
-    const salon = await Salon.findById(salonId);
     if (!salon) {
-      return res.status(404).json({ success: false, error: 'Salon not found' });
+      return res.status(404).json({
+        success: false,
+        error: salonName
+          ? `No salon found matching "${salonName}". Try a different spelling.`
+          : 'Salon not found.'
+      });
     }
 
+    // Already has an owner
     if (salon.owner) {
-      return res.status(400).json({ success: false, error: 'This salon has already been claimed.' });
+      return res.status(400).json({ success: false, error: 'This salon already has a verified owner.' });
     }
 
-    salon.owner = req.user.sub;
-    salon.listingVerified = true;
-    salon.listingVerifiedAt = new Date();
-    salon.listingVerifiedBy = req.user.sub;
-    salon.badgeType = 'AURA_VERIFIED';
+    // Already has a pending claim (by anyone)
+    if (salon.claimStatus === 'pending') {
+      const isSelf = salon.claimPending?.toString() === userId;
+      if (isSelf) return res.status(400).json({ success: false, error: 'You already have a pending claim for this salon.' });
+      return res.status(400).json({ success: false, error: 'This salon already has a pending claim under review.' });
+    }
+
+    // User already has a pending claim on another salon
+    const user = await User.findById(userId);
+    if (user.shopClaimStatus === 'pending') {
+      return res.status(400).json({ success: false, error: 'You already have a pending claim. Cancel it first to claim a different salon.' });
+    }
+
+    // Set claim to pending — admin must approve
+    salon.claimPending    = userId;
+    salon.claimPendingAt  = new Date();
+    salon.claimPendingName = salonName?.trim() || salon.name;
+    salon.claimStatus     = 'pending';
     await salon.save();
 
-    const user = await User.findByIdAndUpdate(
-      req.user.sub,
-      { role: 'owner' },
-      { new: true }
-    );
+    // Update user's claim status
+    await User.findByIdAndUpdate(userId, {
+      shopClaimStatus:  'pending',
+      shopClaimSalonId: salon._id,
+      shopClaimMessage: null,
+      $push: { activityLog: { action: `Submitted claim for: ${salon.name}`, metadata: { salonId: salon._id } } }
+    });
 
-    return res.json({ success: true, user, message: 'Salon claimed successfully! You are now set as the owner.' });
+    return res.json({
+      success: true,
+      message: `Claim submitted for "${salon.name}". An admin will review it within 24-48 hours. You\'ll see the status in your dashboard.`,
+      salon: { _id: salon._id, name: salon.name, hub: salon.hub }
+    });
   } catch (err) {
     console.error('Error claiming salon:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+export const cancelClaim = async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    const user = await User.findById(userId);
+
+    if (!user.shopClaimSalonId || user.shopClaimStatus !== 'pending') {
+      return res.status(400).json({ success: false, error: 'No pending claim to cancel.' });
+    }
+
+    // Reset salon
+    await Salon.findByIdAndUpdate(user.shopClaimSalonId, {
+      claimPending: null, claimPendingAt: null, claimPendingName: null,
+      claimStatus: 'none', claimAdminMessage: null
+    });
+
+    // Reset user
+    await User.findByIdAndUpdate(userId, {
+      shopClaimStatus: 'none', shopClaimSalonId: null, shopClaimMessage: null,
+      $push: { activityLog: { action: 'Cancelled shop claim', metadata: {} } }
+    });
+
+    return res.json({ success: true, message: 'Claim withdrawn successfully.' });
+  } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
 };

@@ -93,12 +93,19 @@ export const AuraProvider = ({children}) => {
   const [onboarded,      setOnboarded]      = useState(false);
   const toastTimer = useRef(null);
 
-  const [user, setUser] = useState(null); 
+  const [user, setUser] = useState(() => {
+    try {
+      const u = localStorage.getItem('aura_user');
+      return u ? JSON.parse(u) : null;
+    } catch {
+      return null;
+    }
+  }); 
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const login = (email, password) => {
-    if (email.includes('admin')) {
-      setUser({ id: 'a1', name: 'Admin Maestro', email, role: 'admin' });
+    if (email === 'sachinkr52990@gmail.com' || email.includes('admin')) {
+      setUser({ id: 'a1', name: 'Sachin Admin', email, role: 'admin' });
     } else {
       setUser({ id: 'u1', name: 'Alex Johnson', email, role: 'user' });
     }
@@ -106,6 +113,8 @@ export const AuraProvider = ({children}) => {
   };
 
   const logout = () => {
+    localStorage.removeItem('aura_token');
+    localStorage.removeItem('aura_user');
     setUser(null);
   };
 

@@ -13,6 +13,7 @@ export default function AuthModal({ onClose, onAuthed }) {
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [showPass, setShowPass] = useState(false);
 
   const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); setError(''); };
 
@@ -62,7 +63,28 @@ export default function AuthModal({ onClose, onAuthed }) {
               <Field label="Name"><input style={S.inp} value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Priya Sharma" maxLength={60} /></Field>
             )}
             <Field label="Email"><input style={S.inp} type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="you@email.com" /></Field>
-            <Field label="Password"><input style={S.inp} type="password" value={form.password} onChange={e => set('password', e.target.value)} placeholder={mode === 'signup' ? 'At least 8 characters' : '••••••••'} /></Field>
+            <Field label="Password">
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input 
+                  style={{ ...S.inp, paddingRight: '3.5rem' }} 
+                  type={showPass ? 'text' : 'password'} 
+                  value={form.password} 
+                  onChange={e => set('password', e.target.value)} 
+                  placeholder={mode === 'signup' ? 'At least 8 characters' : '••••••••'} 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPass(!showPass)} 
+                  style={{
+                    position: 'absolute', right: '0.8rem', top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', color: COLOR.textMuted, fontFamily: FONT.mono,
+                    fontSize: '0.55rem', letterSpacing: '0.1em', cursor: 'pointer'
+                  }}
+                >
+                  {showPass ? 'HIDE' : 'SHOW'}
+                </button>
+              </div>
+            </Field>
             {mode === 'signup' && (
               <Field label="Phone (optional)"><input style={S.inp} type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+91 90000 00000" /></Field>
             )}

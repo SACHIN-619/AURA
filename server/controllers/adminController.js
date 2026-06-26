@@ -265,3 +265,87 @@ export const updateUserRole = async (req, res) => {
     return res.status(500).json({ success: false, error: err.message });
   }
 };
+
+// ── Shop Claim Management ───────────────────────────────────────────────────
+export const getClaims = async (req, res) => {
+  try {
+    const { status = 'pending' } = req.query;
+    const filter = {};
+    if (status !== 'all') filter.claimStatus = status;
+    else filter.claimStatus = { $ne: 'none' };
+
+    const salons = await Salon.find(filter)
+      .select('name hub claimStatus claimPending claimPendingAt claimPendingName claimAdminMessage claimResolvedAt owner')
+      .populate('claimPending', 'name email')
+      .sort({ claimPendingAt: -1 })
+      .lean();
+
+    return res.json({ success: true, claims: salons });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+export const respondToClaim = async (req, res) => {
+  try {
+    const { id } = req.params;           // salon id
+    const { action, message } = req.body; // action: 'approve' | 'reject'
+
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ success: false, error: 'action must be "approve" or "reject"' });
+    }
+
+    const salon = await Salon.findById(id).populate('claimPending', 'email name');
+    if (!salon) return res.status(404).json({ success: false, error: 'Salon not found' });
+    if (salon.claimStatus !== 'pending') {
+      return res.status(400).json({ success: false, error: 'No pending claim on this salon.' });
+    }
+
+    const claimantId = salon.claimPending?._id;
+    if (!claimantId) return res.status(400).json({ success: false, error: 'Claimant not found.' });
+
+    if (action === 'approve') {
+      // Set owner, verify listing, clear claim queue
+      salon.owner              = claimantId;
+      salon.listingVerified    = true;
+      salon.listingVerifiedAt  = new Date();
+      salon.listingVerifiedBy  = req.user.sub;
+      salon.badgeType          = 'AURA_VERIFIED';
+      salon.claimStatus        = 'approved';
+      salon.claimAdminMessage  = message || null;
+      salon.claimResolvedAt    = new Date();
+      await salon.save();
+
+      // Promote user to owner
+      await User.findByIdAndUpdate(claimantId, {
+        role: 'owner',
+        shopClaimStatus:  'approved',
+        shopClaimMessage: message || null,
+        $push: { activityLog: { action: `Shop claim approved: ${salon.name}`, metadata: { salonId: salon._id } } }
+      });
+
+      return res.json({ success: true, message: `Claim approved. ${salon.claimPending?.name} is now owner of "${salon.name}".` });
+
+    } else {
+      // Reject — leave salon unclaimed, notify user
+      salon.claimStatus        = 'rejected';
+      salon.claimAdminMessage  = message || null;
+      salon.claimResolvedAt    = new Date();
+      salon.claimPending       = null;
+      salon.claimPendingAt     = null;
+      await salon.save();
+
+      await User.findByIdAndUpdate(claimantId, {
+        shopClaimStatus:  'rejected',
+        shopClaimSalonId: null,
+        shopClaimMessage: message || 'Your claim was reviewed and could not be approved at this time.',
+        $push: { activityLog: { action: `Shop claim rejected: ${salon.name}`, metadata: { salonId: salon._id } } }
+      });
+
+      return res.json({ success: true, message: `Claim rejected. User has been notified.` });
+    }
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+

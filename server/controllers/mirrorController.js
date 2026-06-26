@@ -70,7 +70,8 @@ export const analyzeImage = async (req, res) => {
   // Layer 1: Gemini Engine
   if (process.env.GEMINI_API_KEY && !parsed) {
     try {
-      const model = new GoogleGenerativeAI(process.env.GEMINI_API_KEY).getGenerativeModel({ model: 'gemini-2.0-flash' });
+      // gemini-2.0-flash-lite: current free-tier model that supports vision (2025)
+      const model = new GoogleGenerativeAI(process.env.GEMINI_API_KEY).getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
       const r = await model.generateContent([
         prompt,
         { inlineData: { mimeType: 'image/jpeg', data: rawBase64Data } },
@@ -86,8 +87,9 @@ export const analyzeImage = async (req, res) => {
   if (process.env.GROQ_API_KEY && !parsed) {
     try {
       const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+      // llama-4-scout-17b-16e-instruct is Groq's current free vision model (2025)
       const response = await groq.chat.completions.create({
-        model: 'llama-3.2-11b-vision-preview',
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
         messages: [{
           role: 'user',
           content: [

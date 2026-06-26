@@ -21,6 +21,11 @@ const UserSchema = new mongoose.Schema({
   xp:    { type: Number, default: 0 },
   level: { type: Number, default: 1 },
   hasUsedAiSearch: { type: Boolean, default: false },
+
+  // Shop claim tracking — mirrors Salon.claimStatus for quick dashboard display
+  shopClaimStatus:  { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
+  shopClaimSalonId: { type: mongoose.Schema.Types.ObjectId, ref: 'Salon', default: null },
+  shopClaimMessage: { type: String, default: null }, // admin response
   
   activityLog: [{
     action: String,

@@ -62,6 +62,14 @@ const SalonSchema = new mongoose.Schema({
   owner:             { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
   services:          [{ name: String, category: String, price: Number }],
 
+  // Claim flow — user submits claim, admin approves/rejects with optional message
+  claimPending:      { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, // user who submitted claim
+  claimPendingAt:    { type: Date, default: null },
+  claimPendingName:  { type: String, default: null }, // search name they used
+  claimStatus:       { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
+  claimAdminMessage: { type: String, default: null }, // admin response message
+  claimResolvedAt:   { type: Date, default: null },
+
   reports: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     reason: String,
