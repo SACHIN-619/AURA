@@ -51,9 +51,12 @@ export default function RatingModal({ salon, existingReviews = [], onClose, onSu
         body: JSON.stringify({ salonId: salon._id, customerEmail: email, customerName: name, stars, comment }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Could not submit rating');
-      pushToast(d.message || 'Thank you for rating!');
-      onSubmitted?.();
+      if (!r.ok) {
+        if (r.status === 401) throw new Error('Please login first to leave a rating.');
+        throw new Error(d.error || 'Failed to submit');
+      }
+      pushToast(d.verified ? 'Verified rating published!' : 'Rating published.', 'success');
+      onSubmitted?.(d.rating);
     } catch (e) {
       pushToast(e.message, 'error');
     } finally {

@@ -35,6 +35,7 @@ export default function BookingModal({ salon, onClose, onSuccess }) {
   const [form, setForm] = useState({ name: user?.name || '', email: user?.email || '', phone: '', category: '', date: '', slot: '', notes: '' });
   const [errs, setErrs] = useState({});
   const [busy, setBusy] = useState(false);
+  const [aiWarning, setAiWarning] = useState(null);
 
   const set = (k, v) => {
     setForm(f => ({ ...f, [k]: v }));
@@ -75,6 +76,33 @@ export default function BookingModal({ salon, onClose, onSuccess }) {
     window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(lines)}`, '_blank', 'noopener,noreferrer');
     onSuccess?.({ salonName: salon?.name, hub: salon?.hub || '', date: form.date, slot: form.slot, viaWhatsApp: true });
     onClose();
+  };
+
+  const handleReviewDetails = async () => {
+    if (!validateDetails()) return;
+    setStep('verifying');
+    setAiWarning(null);
+    try {
+      const res = await fetch(`${API}/api/ai/verify-salon-booking`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          salonId: salon._id,
+          name: salon.name,
+          hub: salon.hub,
+          tier: salon.tier,
+          priceTier: salon.priceTier,
+          service: form.category
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.verification && data.verification.flagged) {
+        setAiWarning(data.verification.message);
+      }
+    } catch (e) {
+      console.warn('AI Verification failed', e);
+    }
+    setStep('confirm');
   };
 
   const submitRequest = async () => {
@@ -177,9 +205,11 @@ export default function BookingModal({ salon, onClose, onSuccess }) {
         {mode === 'request' && (
           <>
             <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', marginBottom: '1.3rem' }}>
-              {['contact', 'details', 'confirm'].map((s, i) => (
-                <div key={s} style={{ width: 6, height: 6, borderRadius: '50%', background: ['contact', 'details', 'confirm'].indexOf(step) >= i ? COLOR.gold : 'rgba(212,175,55,0.2)', transition: 'background 0.3s' }} />
-              ))}
+              {['contact', 'details', 'confirm'].map((s, i) => {
+                const effectiveStep = step === 'verifying' ? 'confirm' : step;
+                const active = ['contact', 'details', 'confirm'].indexOf(effectiveStep) >= i;
+                return <div key={s} style={{ width: 6, height: 6, borderRadius: '50%', background: active ? COLOR.gold : 'rgba(212,175,55,0.2)', transition: 'background 0.3s' }} />;
+              })}
             </div>
             <AnimatePresence mode="wait">
               {step === 'contact' && (
@@ -207,9 +237,16 @@ export default function BookingModal({ salon, onClose, onSuccess }) {
                   </Field>
                   <Field label="Notes (optional)"><textarea style={{ ...S.inp, height: 64, resize: 'none' }} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Any special requirements…" maxLength={400} /></Field>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.5rem' }}>
-                    <button style={S.next} onClick={() => validateDetails() && setStep('confirm')}>{t('booking_review')}</button>
+                    <button style={S.next} onClick={handleReviewDetails}>{t('booking_review')}</button>
                     <button style={{...S.back2, width: '100%'}} onClick={() => setStep('contact')}>{t('booking_back')}</button>
                   </div>
+                </motion.div>
+              )}
+              {step === 'verifying' && (
+                <motion.div key="ver" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ textAlign: 'center', padding: '2rem 0' }}>
+                  <div style={{ width: 30, height: 30, border: '2px solid rgba(212,175,55,0.2)', borderTopColor: COLOR.gold, borderRadius: '50%', margin: '0 auto 1rem', animation: 'spin 1s linear infinite' }} />
+                  <p style={{ fontFamily: FONT.mono, fontSize: '0.8rem', color: COLOR.gold, letterSpacing: '0.05em' }}>AURA AI is verifying latest salon details...</p>
+                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                 </motion.div>
               )}
               {step === 'confirm' && (
@@ -231,6 +268,17 @@ export default function BookingModal({ salon, onClose, onSuccess }) {
                       </div>
                     ))}
                   </div>
+                  {aiWarning && (
+                    <div style={{ background: 'rgba(239,83,80,0.1)', border: '1px solid rgba(239,83,80,0.3)', borderRadius: 8, padding: '0.9rem', marginBottom: '1rem' }}>
+                      <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: '1rem' }}>⚠️</span>
+                        <div>
+                          <span style={{ display: 'block', fontFamily: FONT.mono, fontSize: '0.75rem', fontWeight: 'bold', color: '#EF5350', marginBottom: '0.3rem' }}>AI Validation Note</span>
+                          <span style={{ fontFamily: FONT.body, fontSize: '0.8rem', color: 'rgba(255,255,255,0.9)', lineHeight: 1.5 }}>{aiWarning}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <p style={{ fontFamily: FONT.mono, fontSize: '0.4rem', letterSpacing: '0.08em', color: 'rgba(255,248,220,0.3)', lineHeight: 1.7, marginBottom: '1rem' }}>This is a request, not a confirmed booking. We'll email you once the salon responds.</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                     <motion.button style={{ ...S.next, width: '100%', opacity: busy ? 0.6 : 1 }} onClick={submitRequest} disabled={busy} whileHover={busy ? {} : { filter: 'brightness(1.06)' }} whileTap={busy ? {} : { scale: 0.98 }}>

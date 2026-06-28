@@ -86,7 +86,7 @@ export function getSalonPhoto(salon) {
 export function estimatePriceTier(salon) {
   if (salon.priceTier) return salon.priceTier;
   
-  const highAffinityHubs = ['Jubilee Hills', 'Banjara Hills', 'Gachibowli', 'Hitech City', 'Nanakramguda', 'Begumpet'];
+  const highAffinityHubs = ['Jubilee Hills', 'Banjara Hills', 'Gachibowli', 'Hitech City', 'Nanakramguda', 'Begumpet', 'Durgam Cheruvu', 'Raidurg', 'Panjagutta'];
   const currentHub = salon.hub || '';
   
   const isHighEnd = highAffinityHubs.some(h => currentHub.toLowerCase().includes(h.toLowerCase()));

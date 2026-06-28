@@ -13,7 +13,8 @@ const SalonSchema = new mongoose.Schema({
   hub:          { type: String, required: true, index: true },
   location:     { type: { type: String, enum: ['Point'], default: 'Point' }, coordinates: { type: [Number], required: true } },
   address:      { street: String, suburb: String, city: { type: String, default: 'Hyderabad' }, postcode: String, state: { type: String, default: 'Telangana' } },
-  contact:      { phone: String, website: String, email: String },
+  contact:      { phone: String, whatsapp: String, website: String, email: String },
+  description:  { type: String },
   openingHours: { type: String },
 
   // Famous Landmarks near this salon for proximity matching

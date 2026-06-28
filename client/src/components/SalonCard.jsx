@@ -11,6 +11,7 @@ import RatingDisplay from './RatingDisplay';
 import BookingSuccess from './BookingSuccess';
 import VerifiedListingBadge from './VerifiedListingBadge';
 import DynamicTranslate from './DynamicTranslate';
+import ReportModal from './ReportModal';
 
 export const cardVariants = {
   hidden: { opacity: 0, y: 32, scale: 0.97 },
@@ -132,7 +133,9 @@ const SalonCard = forwardRef(function SalonCard({
   const [aiAnalysis, setAiAnalysis] = useState(salon.aiResearchData || null);
   const [fetchingAi, setFetchingAi] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const [showSchedulePrompt, setShowSchedulePrompt] = useState(false);
   const [showMapEmbed, setShowMapEmbed] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
@@ -473,27 +476,10 @@ const SalonCard = forwardRef(function SalonCard({
                   )}
                   <button 
                     style={{ background:'transparent', border:'none', color:'#ef4444', padding:'8px 12px', textAlign:'left', fontSize:'0.75rem', fontFamily:FONT.mono, cursor:'pointer', width:'100%', borderRadius:'4px' }} 
-                    onClick={async (e) => {
+                    onClick={(e) => {
                       e.stopPropagation();
                       setShowActionMenu(false);
-                      if (!user) return setAuthModalOpen(true);
-                      if (window.confirm("Report this salon for inappropriate content or invalid details?")) {
-                        try {
-                          const res = await fetch(`${API}/api/salons/${salon._id}/report`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ user: user._id, reason: 'User Report', details: 'Reported via Salon Card' })
-                          });
-                          const data = await res.json();
-                          if (data.success) {
-                            alert('Report submitted successfully. Thank you.');
-                          } else {
-                            alert(data.error || 'Failed to submit report');
-                          }
-                        } catch (err) {
-                          alert('Error submitting report.');
-                        }
-                      }
+                      setShowReportModal(true);
                     }}
                     onMouseOver={(e)=>e.currentTarget.style.background='rgba(239,68,68,0.1)'}
                     onMouseOut={(e)=>e.currentTarget.style.background='transparent'}
@@ -508,6 +494,9 @@ const SalonCard = forwardRef(function SalonCard({
       </motion.article>
 
       {/* Modals */}
+      <AnimatePresence>
+        {showReportModal && <ReportModal key="rm" salon={salon} onClose={() => setShowReportModal(false)} />}
+      </AnimatePresence>
       <AnimatePresence>
         {showBook && <BookingModal key="bm" salon={salon} onClose={() => setShowBook(false)} onSuccess={d => { setOkData(d); setShowOk(true); }} />}
       </AnimatePresence>

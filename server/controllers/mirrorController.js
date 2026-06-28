@@ -152,13 +152,37 @@ export const analyzeImage = async (req, res) => {
       }
     }
 
+    // Fetch real salons matching the styles
+    const SalonModel = (await import('../models/Salon.js')).default;
+    
+    // We will attach a list of matching salons to each style
+    const stylesWithSalons = await Promise.all(parsed.styles.slice(0, 3).map(async (style) => {
+      try {
+        const matchingSalons = await SalonModel.find({
+          // Simple text match or category match based on the tag or label
+          $or: [
+            { serviceCategories: { $regex: style.tag || style.label, $options: 'i' } },
+            { name: { $regex: style.label, $options: 'i' } }
+          ],
+          listingVerified: { $ne: false } // Only show verified or OSM (which don't have this explicitly false)
+        }).limit(3).lean();
+        
+        return {
+          ...style,
+          salons: matchingSalons || []
+        };
+      } catch (err) {
+        return { ...style, salons: [] };
+      }
+    }));
+
     return res.json({
       success: true,
       analysis: parsed.analysis || 'Analysis processing parameters standard.',
       detectedContext: parsed.detectedContext || '',
       score: typeof parsed.score === 'number' ? Math.min(96, Math.max(65, parsed.score)) : 78,
       reasons: Array.isArray(parsed.reasons) && parsed.reasons.length ? parsed.reasons : ['Tailored to features'],
-      styles: parsed.styles.slice(0, 3),
+      styles: stylesWithSalons,
       genderContext,
       aiProvider: activeProvider,
       xpAwarded,

@@ -146,10 +146,27 @@ export default function AuraMirror({onClose,onBook}) {
       if(!res.ok || !data.success) throw new Error(data.error || 'Analysis failed');
       setResult(data);
       
-      let matches = [...(allFilteredSalons || [])];
-      if (gender === 'Woman') matches = matches.filter(s => s.servesGender === 'female' || s.servesGender === 'unisex');
-      else if (gender === 'Man') matches = matches.filter(s => s.servesGender === 'male' || s.servesGender === 'unisex');
-      matches.sort(() => 0.5 - Math.random());
+      // Extract the matching salons that the backend found for these specific styles
+      let matches = [];
+      data.styles.forEach(style => {
+        if (style.salons && style.salons.length) {
+          matches.push(...style.salons);
+        }
+      });
+
+      // Deduplicate by ID
+      matches = matches.filter((salon, index, self) =>
+        index === self.findIndex((s) => s._id === salon._id)
+      );
+
+      // Fallback if the backend couldn't find matches for the specific styles
+      if (matches.length === 0) {
+        matches = [...(allFilteredSalons || [])];
+        if (gender === 'Woman') matches = matches.filter(s => s.servesGender === 'female' || s.servesGender === 'unisex');
+        else if (gender === 'Man') matches = matches.filter(s => s.servesGender === 'male' || s.servesGender === 'unisex');
+        matches.sort(() => 0.5 - Math.random());
+      }
+
       setRecommendedSalons(matches.slice(0, 3));
       
       setStage('result');

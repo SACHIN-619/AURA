@@ -22,7 +22,8 @@ npm run seed             # from root — syncs all 8 Hyderabad hubs from OSM
 ## What's inside
 
 **Discovery & Location Logic**
-- Location-first onboarding — asks for location permission immediately, falls back to free-text search, never silently assumes a hub.
+- Location-first onboarding — asks for location permission immediately, automatically uses GPS to map the user to the nearest verified hub, and falls back to a free-text search.
+- Live Dynamic Hubs — Locations are dynamically fetched directly from the MongoDB database (`/api/salons/hubs`), eliminating hardcoded .env lists and ensuring the UI is always perfectly in sync with active salon data.
 - AI-Powered Geocoding Fallback — When a user misspells a local place (e.g., "jubili hills"), the backend intelligently routes the query through an AI model to extract and map it to the correct regional hub.
 - Hub-Centroid Distance Calculation — Displays accurate haversine distances relative to the selected hub center, ensuring contextual relevance even if live GPS isn't used.
 - Live OSM data — real salon listings via Nominatim + Overpass API, with Ola Maps as a geocoding fallback if Nominatim fails (2-layer resilience for a critical path).
@@ -37,9 +38,10 @@ npm run seed             # from root — syncs all 8 Hyderabad hubs from OSM
 - AURA Verified Listings — a separate badge, set only by an admin who manually confirmed the salon's basic info is accurate.
 - Honest booking flow — WhatsApp-first when a real phone number exists, falls back to a logged "request" otherwise. Never fakes instant confirmation.
 
-**Accounts**
+**Accounts & Ecosystem**
 - Real signup/login (bcrypt + JWT). Every account is created with `role: 'user'` — becoming an admin requires manually editing the database, never an API call.
-- Profile photo upload (Cloudinary), password change, booking/rating history.
+- User Dashboard & Owner Funnel — Premium dashboard showing bookings, history, and a seamless "Claim Your Shop" funnel designed to convert high-tier users into marketplace vendors.
+- Owner CRM Interface — Once a user becomes an owner, they access a visually stunning glassmorphism dashboard to manage their salon, menu, and reviews.
 - Honest XP system — points only for actions the backend can verify happened (signup, first AI search, rating submitted, verified-rating bonus). Nothing rewards an unverifiable claim like "I got a haircut."
 
 **Multi-language** — English, Hindi, Telugu, Urdu (with RTL layout) across the core flows.
@@ -58,17 +60,12 @@ npm run seed             # from root — syncs all 8 Hyderabad hubs from OSM
 
 #### Frontend (Vercel)
 - **VITE_API_URL**: Set to the Render backend URL: `https://aura-jdlt.onrender.com`
-- **VITE_MARKETPLACE_DEFAULT_CITY**: `Hyderabad`
-- **VITE_MARKETPLACE_DEFAULT_STATE**: `Telangana`
-- **VITE_MARKETPLACE_COUNTRY_FOCUS**: `India`
-- **VITE_ACTIVE_HUBS**: `Jubilee Hills,Banjara Hills,Hitech City,Gachibowli,Madhapur,Kondapur,Kukatpally,Ameerpet`
 - **VITE_MARKETPLACE_LANGUAGES**: JSON array containing supported languages (English, Telugu, Hindi, Urdu, Marathi, Tamil, Kannada, Bengali).
 
 #### Backend (Render)
 - **CLIENT_ORIGIN**: Set to the Vercel frontend URL: `https://aura-flax-two.vercel.app`
 - **MONGODB_URI**: MongoDB Atlas connection string.
 - **JWT_SECRET**: Hashing secret key for JWT verification.
-- **ACTIVE_MARKETPLACE_HUBS**: Comma-separated list of active hubs: `Jubilee Hills,Banjara Hills,Hitech City,Gachibowli,Madhapur,Kondapur,Kukatpally,Ameerpet`
 - **GEMINI_API_KEY**: Google Gemini model API key (primary AI concierge engine).
 - **GROQ_API_KEY / HUGGINGFACE_API_KEY / KRUTRIM_API_KEY**: API keys for our 4-tier AI provider failover cascade.
 - **CLOUDINARY_CLOUD_NAME**: Cloudinary account cloud name (for AuraMirror image uploads).

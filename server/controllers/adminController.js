@@ -18,6 +18,68 @@ import Rating  from '../models/Rating.js';
 import User    from '../models/User.js';
 import Analytics from '../models/Analytics.js';
 
+export const createSalon = async (req, res) => {
+  try {
+    const { name, hub, address, contact, description, location, images, serviceCategories, servesGender, services } = req.body;
+
+    if (!name || !hub || !location || !location.lat || !location.lon) {
+      return res.status(400).json({ success: false, error: 'Name, hub, and location are required.' });
+    }
+
+    if (!images || !images.gallery || images.gallery.length < 3) {
+      return res.status(400).json({ success: false, error: 'At least 3 images are required.' });
+    }
+
+    // Process base64 images if they exist
+    const { uploadSalonImage, isUploadConfigured } = await import('../services/uploadService.js');
+    const uploadedGalleryUrls = [];
+    
+    if (isUploadConfigured()) {
+      for (let i = 0; i < images.gallery.length; i++) {
+        const img = images.gallery[i];
+        if (img && img.startsWith('data:image/')) {
+          const url = await uploadSalonImage(img, `manual_${Date.now()}`, i);
+          uploadedGalleryUrls.push(url);
+        } else {
+          uploadedGalleryUrls.push(img);
+        }
+      }
+    } else {
+       return res.status(500).json({ success: false, error: 'Cloudinary upload is not configured' });
+    }
+
+    images.gallery = uploadedGalleryUrls;
+    images.banner = uploadedGalleryUrls[0];
+    images.thumbnail = uploadedGalleryUrls[0];
+
+    const newSalon = new Salon({
+      osmId: `admin_${Date.now()}_${Math.floor(Math.random()*1000)}`,
+      name,
+      hub,
+      location: {
+        type: 'Point',
+        coordinates: [location.lon, location.lat] // GeoJSON expects [longitude, latitude]
+      },
+      address,
+      contact,
+      description,
+      images,
+      serviceCategories,
+      servesGender,
+      services,
+      ratingSource: 'real',
+      listingVerified: true, // admin created, so it's verified
+      listingVerifiedAt: new Date(),
+      listingVerifiedBy: req.user?._id
+    });
+
+    await newSalon.save();
+    return res.status(201).json({ success: true, salon: newSalon });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 export const getOverview = async (req, res) => {
   try {
     const [

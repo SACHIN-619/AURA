@@ -3,6 +3,7 @@ import Salon from '../models/Salon.js';
 import User from '../models/User.js';
 import mongoose from 'mongoose';
 
+
 export const getSalons = async (req, res) => {
   try {
     const { hub, category, gender, page = 1, limit = 60, sort = 'name' } = req.query;
@@ -261,6 +262,77 @@ export const cancelClaim = async (req, res) => {
     });
 
     return res.json({ success: true, message: 'Claim withdrawn successfully.' });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+export const proposeSalon = async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    const { name, hub, address, contact, description, location, images, serviceCategories, servesGender } = req.body;
+
+    if (!name || !hub || !location || !location.lat || !location.lon) {
+      return res.status(400).json({ success: false, error: 'Name, hub, and location are required.' });
+    }
+    
+    const user = await User.findById(userId);
+    if (user.shopClaimStatus === 'pending') {
+      return res.status(400).json({ success: false, error: 'You already have a pending claim or proposed shop. Cancel it first.' });
+    }
+
+    const { uploadSalonImage, isUploadConfigured } = await import('../services/uploadService.js');
+    const uploadedGalleryUrls = [];
+    
+    if (isUploadConfigured() && images?.gallery?.length) {
+      for (let i = 0; i < images.gallery.length; i++) {
+        const img = images.gallery[i];
+        if (img && img.startsWith('data:image/')) {
+          const url = await uploadSalonImage(img, `propose_${Date.now()}`, i);
+          uploadedGalleryUrls.push(url);
+        } else {
+          uploadedGalleryUrls.push(img);
+        }
+      }
+    }
+
+    const newSalon = new Salon({
+      osmId: `user_${userId}_${Date.now()}`,
+      name,
+      hub,
+      location: {
+        type: 'Point',
+        coordinates: [location.lon, location.lat]
+      },
+      address,
+      contact,
+      description,
+      images: {
+        gallery: uploadedGalleryUrls,
+        banner: uploadedGalleryUrls[0] || null,
+        thumbnail: uploadedGalleryUrls[0] || null
+      },
+      serviceCategories,
+      servesGender,
+      ratingSource: 'real',
+      listingVerified: false,
+      claimPending: userId,
+      claimPendingAt: new Date(),
+      claimPendingName: name,
+      claimStatus: 'pending'
+    });
+
+    await newSalon.save();
+    
+    // Update user's claim status
+    await User.findByIdAndUpdate(userId, {
+      shopClaimStatus:  'pending',
+      shopClaimSalonId: newSalon._id,
+      shopClaimMessage: null,
+      $push: { activityLog: { action: `Proposed new shop: ${newSalon.name}`, metadata: { salonId: newSalon._id } } }
+    });
+
+    return res.status(201).json({ success: true, message: 'Shop proposed successfully. Pending admin review.', salon: newSalon });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }

@@ -122,19 +122,22 @@ select option{background:#0d0a13;}
   background: var(--c-void-deep);
 }
 .owner-sidebar {
-  width: 260px;
-  background: rgba(15,11,22,0.85);
-  border-right: 1px solid var(--c-edge);
-  padding: 2rem 1rem;
+  width: 280px;
+  background: rgba(10,8,15,0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(212,175,55,0.15);
+  box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+  padding: 2.5rem 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-  transition: transform 0.3s ease;
+  gap: 2.5rem;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1000;
 }
 .owner-main {
   flex: 1;
-  background: radial-gradient(circle at top right, #140e1f, var(--c-void-deep));
+  background: radial-gradient(circle at top right, rgba(30,22,45,0.8), var(--c-void-deep));
   overflow-y: auto;
 }
 .owner-hamburger {

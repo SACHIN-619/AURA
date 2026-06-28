@@ -20,6 +20,9 @@ import OwnerDashboardLayout from './pages/owner/OwnerDashboardLayout';
 import CoreBoutiqueMetrics from './pages/owner/CoreBoutiqueMetrics';
 import PricingCategoryManager from './pages/owner/PricingCategoryManager';
 import AiReviewControl from './pages/owner/AiReviewControl';
+import AdminDashboardLayout from './pages/admin/AdminDashboardLayout';
+import AdminSalonManager from './pages/admin/AdminSalonManager';
+import ProposeSalon from './pages/ProposeSalon';
 
 // ── Text Scale Levels ──────────────────────────────────────────────────────
 const FONT_SCALES = [
@@ -70,6 +73,10 @@ function MainAppRoutes() {
         <Route path="services" element={<PricingCategoryManager />} />
         <Route path="reviews" element={<AiReviewControl />} />
       </Route>
+      <Route path="/admin" element={<AdminDashboardLayout />}>
+        <Route path="salons" element={<AdminSalonManager />} />
+      </Route>
+      <Route path="/propose-shop" element={<ProposeSalon />} />
     </Routes>
   );
 }

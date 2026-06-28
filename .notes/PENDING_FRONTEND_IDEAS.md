@@ -30,9 +30,8 @@ zero-cost photo source surfaces.
 
 ## 3. Sidebar city/area search → view shops there
 Already exists: GlassSidebar has a hub search box + LocationOnboarding has
-area search via Nominatim. CONFIRM this is what user means, or if they want
-something more (e.g. search a city outside Hyderabad entirely?).
-STATUS: believe this is already built — verify with user before assuming done.
+area search via Nominatim. 
+STATUS: **DONE**. We completely overhauled the Location Onboarding with a GPS "Find Salons Near Me" button and dynamic database-driven hub searches (hitting `/api/salons/hubs`), removing reliance on `.env` files entirely.
 
 ## 4. Price ranges + AuraVerified trademark logo
 User asks: when admin verifies a salon, does it get a trademark/AuraVerified

@@ -16,7 +16,12 @@ export const HYDERABAD_HUBS = [
   'Nallakunta', 'Narayanguda', 'Nampally', 'Nizampet', 'Nagole', 'Narsingi', 'Nanakramguda', 'Old City',
   'Pragati Nagar', 'Puppalaguda', 'Ramanthapur', 'Rajendra Nagar', 'Somajiguda', 'Secunderabad',
   'Srinagar Colony', 'Sanathnagar', 'Santoshnagar', 'Sainikpuri', 'Sharamshabad', 'Shathavahana Nagar',
-  'Tarnaka', 'Tolichowki', 'Trimulgherry', 'Uppal', 'Vanasthalipuram', 'Vengal Rao Nagar', 'Yousufguda'
+  'Tarnaka', 'Tolichowki', 'Trimulgherry', 'Uppal', 'Vanasthalipuram', 'Vengal Rao Nagar', 'Yousufguda',
+  'KPHB Colony', 'Panjagutta', 'MGBS', 'Durgam Cheruvu', 'Raidurg', 'Lakdikapul', 'Secunderabad East', 'JNTU College',
+  'Ghatkesar', 'Jodimetla', 'Narapally', 'Boduppal', 'Medipally', 'Chengicherla', 'Pocharam', 'Habsiguda',
+  'OU Campus', 'Kompally', 'Medchal', 'Bowenpally', 'Alwal', 'AS Rao Nagar', 'ECIL', 'Neredmet', 'Narsingi',
+  'Moinabad', 'Shamirpet', 'Nampally', 'Abids', 'Koti', 'Narayanaguda', 'Basheerbagh', 'Chaderghat',
+  'Chandanagar', 'BHEL', 'Patancheru', 'Nallagandla', 'Tellapur', 'Gopanpally'
 ];
 
 const STYLING_PREFIXES = ['Aura Luxury', 'Vogue Signature', 'The Royal', 'Monarch Elite', 'Esthetic Noir', 'Velvet Gold', 'Elysian', 'Opulent'];

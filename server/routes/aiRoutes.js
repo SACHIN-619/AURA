@@ -135,4 +135,52 @@ router.post('/enrich-salon', async (req, res) => {
   }
 });
 
+router.post('/verify-salon-booking', async (req, res) => {
+  try {
+    const { salonId, name, hub, tier, priceTier, service } = req.body;
+    
+    // Use Gemini to analyze if the price/details seem suspiciously low or outdated for the given hub & tier.
+    const prompt = `You are a data validation AI for AURA, a salon marketplace. A user is about to book a salon with these details:
+    Salon Name: ${name}
+    Location/Hub: ${hub}
+    AURA Tier: ${tier || 'unrated'}
+    Price Tier: ${priceTier || 'Moderate'}
+    Requested Service: ${service || 'General Service'}
+    
+    Analyze if these details seem contradictory or potentially outdated. For example, a 'Platinum' tier salon in 'Jubilee Hills' with a 'Budget' price tier is highly suspicious.
+    If you detect a significant discrepancy that the user should be warned about before booking, return a warning flag.
+    Format your response as a strict JSON object with keys "flagged" (boolean) and "message" (string explaining the warning if flagged, or null).
+    Do not output any markdown code blocks, text wrapper, or explanations. Only raw JSON.`;
+
+    const aiOutput = await queryYourGeminiModel({ prompt });
+    let result = { flagged: false, message: null };
+    try {
+      const cleaned = aiOutput.replace(/```json\s*/gi,'').replace(/```/g,'').trim();
+      result = JSON.parse(cleaned);
+    } catch (parseErr) {
+      console.warn('Failed to parse AI verification response:', aiOutput, parseErr);
+    }
+
+    if (result.flagged) {
+      // Auto-file an internal report if the salon exists
+      const salon = await Salon.findById(salonId);
+      if (salon) {
+        salon.reports.push({
+          user: null, // System generated
+          reason: 'AI Verification Flag',
+          details: result.message,
+          status: 'pending'
+        });
+        await salon.save();
+      }
+    }
+
+    res.json({ success: true, verification: result });
+  } catch (error) {
+    console.error('AI booking verification error:', error);
+    // Don't block booking if AI fails
+    res.json({ success: true, verification: { flagged: false, message: null } });
+  }
+});
+
 export default router;

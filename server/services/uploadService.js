@@ -46,6 +46,22 @@ export async function uploadAvatar(base64DataUri, userId) {
   return result.secure_url;
 }
 
+export async function uploadSalonImage(base64DataUri, salonId, index) {
+  if (!ensureConfigured()) {
+    throw new Error('Image upload is not configured on this server (CLOUDINARY_* env vars missing)');
+  }
+  const result = await cloudinary.uploader.upload(base64DataUri, {
+    folder: 'aura-salons',
+    public_id: `salon_${salonId}_img_${index}_${Date.now()}`,
+    overwrite: true,
+    transformation: [
+      { width: 800, height: 600, crop: 'limit' },
+      { quality: 'auto', fetch_format: 'auto' },
+    ],
+  });
+  return result.secure_url;
+}
+
 export async function deleteAvatar(userId) {
   if (!ensureConfigured()) return; // nothing to clean up if not configured
   try {

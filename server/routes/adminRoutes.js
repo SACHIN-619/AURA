@@ -1,6 +1,6 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import { getOverview, getRecentBookings, getModerationQueue, getDataGaps, getAnalytics, verifyListing, getUnverifiedListings, getActivityStream, getReports, getUsers, updateUserRole, getClaims, respondToClaim } from '../controllers/adminController.js';
+import { getOverview, getRecentBookings, getModerationQueue, getDataGaps, getAnalytics, verifyListing, getUnverifiedListings, getActivityStream, getReports, getUsers, updateUserRole, getClaims, respondToClaim, createSalon } from '../controllers/adminController.js';
 import { requireAuth, requireAdmin } from '../controllers/authController.js';
 
 const router = express.Router();
@@ -11,6 +11,7 @@ const lim = rateLimit({ windowMs: 60*1000, max: 60, message: { success: false, e
 // direct MongoDB edit — never through any request this API accepts.
 router.use(requireAuth, requireAdmin);
 
+router.post('/salons',          lim, createSalon);
 router.get('/overview',         lim, getOverview);
 router.get('/bookings',         lim, getRecentBookings);
 router.get('/moderation-queue', lim, getModerationQueue);

@@ -71,6 +71,15 @@ function OverviewTab({ data, progress }) {
         ))}
       </div>
 
+      {/* Owner Funnel Banner */}
+      <div style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(255,242,168,0.05))', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 12, padding: '1.2rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+        <div>
+          <h3 style={{ fontFamily: FONT.display, fontSize: '1.2rem', color: COLOR.gold, margin: '0 0 0.3rem 0' }}>Own a premium salon?</h3>
+          <p style={{ fontFamily: FONT.body, fontSize: '0.85rem', color: COLOR.textPrimary, margin: 0, opacity: 0.9 }}>Join AURA Marketplace and manage your business like never before.</p>
+        </div>
+        <a href="/admin/salons" style={{ padding: '0.6rem 1.2rem', background: COLOR.gold, color: '#000', borderRadius: 8, fontFamily: FONT.mono, fontSize: '0.75rem', fontWeight: 'bold', textDecoration: 'none', letterSpacing: '0.05em' }}>Claim Your Shop ✦</a>
+      </div>
+
       {/* Recent Bookings */}
       <div style={ST.sectionTitle}>Recent Activity</div>
       {recent.length === 0
@@ -262,8 +271,12 @@ function ShopTab({ user, token }) {
           </p>
         </div>
         <div style={{ ...ST.sectionTitle, marginTop: '1.5rem' }}>Submit a New Claim</div>
-        {/* falls through to claim form below — render form inline */}
         <ClaimForm salonSearch={salonSearch} setSalonSearch={setSalonSearch} claiming={claiming} submitClaim={submitClaim} msg={msg} msgOk={msgOk} />
+        
+        <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+          <p style={{ fontFamily: FONT.body, fontSize: '0.82rem', color: COLOR.textMuted }}>Can't find your shop?</p>
+          <a href="/propose-shop" style={{ ...ST.goldBtn, display: 'inline-block', textDecoration: 'none', padding: '0.6rem 1.5rem', width: 'auto' }}>✦ List Your Shop</a>
+        </div>
       </div>
     );
   }
@@ -278,6 +291,12 @@ function ShopTab({ user, token }) {
         </p>
         <ClaimForm salonSearch={salonSearch} setSalonSearch={setSalonSearch} claiming={claiming} submitClaim={submitClaim} msg={msg} msgOk={msgOk} />
       </div>
+
+      <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+        <p style={{ fontFamily: FONT.body, fontSize: '0.82rem', color: COLOR.textMuted }}>Can't find your shop?</p>
+        <a href="/propose-shop" style={{ ...ST.goldBtn, display: 'inline-block', textDecoration: 'none', padding: '0.6rem 1.5rem', width: 'auto' }}>✦ List Your Shop</a>
+      </div>
+
       <div style={{ ...ST.sectionTitle, marginTop: '1.5rem' }}>What You Get After Approval</div>
       {[['✦ Verified Badge', 'A gold verification badge on your listing.'],
         ['📊 Analytics', 'Booking trends, views and engagement in real-time.'],
