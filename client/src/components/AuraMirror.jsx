@@ -6,11 +6,12 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { COLOR, FONT } from '../utils/tokens';
 import { API, useAura } from '../context/AuraContext';
+import SalonCard from './SalonCard';
 
 const GENDER_OPTIONS = ['Woman', 'Man', 'Non-binary', 'Prefer not to say'];
 
 export default function AuraMirror({onClose,onBook}) {
-  const { trackEvent, user, setAuthModalOpen, pushToast } = useAura();
+  const { trackEvent, user, setAuthModalOpen, pushToast, allFilteredSalons } = useAura();
   const [stage,setStage]=useState('upload'); // gender | upload | webcam | crop | analyzing | result | error
   const [gender,setGender]=useState(null);
   const [rawImage,setRawImage]=useState(null);   // original uploaded image (data URL)
@@ -22,6 +23,7 @@ export default function AuraMirror({onClose,onBook}) {
   const imgRef=useRef();
   const cropBoxRef=useRef();
   const [stream, setStream] = useState(null);
+  const [recommendedSalons, setRecommendedSalons] = useState([]);
 
   // Removed login requirement in useEffect so guests can use the mirror
 
@@ -143,6 +145,13 @@ export default function AuraMirror({onClose,onBook}) {
       const data = await res.json();
       if(!res.ok || !data.success) throw new Error(data.error || 'Analysis failed');
       setResult(data);
+      
+      let matches = [...(allFilteredSalons || [])];
+      if (gender === 'Woman') matches = matches.filter(s => s.servesGender === 'female' || s.servesGender === 'unisex');
+      else if (gender === 'Man') matches = matches.filter(s => s.servesGender === 'male' || s.servesGender === 'unisex');
+      matches.sort(() => 0.5 - Math.random());
+      setRecommendedSalons(matches.slice(0, 3));
+      
       setStage('result');
       trackEvent('mirror_used', { metadata: { gender: gender || 'unspecified' } });
     } catch(e) {
@@ -296,18 +305,10 @@ export default function AuraMirror({onClose,onBook}) {
               <p style={{fontFamily:FONT.display,fontSize:'0.95rem',fontStyle:'italic',color:COLOR.textMuted,marginBottom:'0.6rem',lineHeight:1.6}}>{result.analysis}</p>
               {result.detectedContext&&<p style={{fontFamily:FONT.mono,fontSize:'0.75rem',letterSpacing:'0.08em',color:COLOR.textGhost,marginBottom:'0.4rem'}}>👁 {result.detectedContext}</p>}
               {result.aiProvider && <p style={{fontFamily:FONT.mono,fontSize:'0.7rem',letterSpacing:'0.05em',color:'rgba(255,255,255,0.2)',marginBottom:'1.2rem',textAlign:'right'}}>Powered by {result.aiProvider}</p>}
-              <div style={{fontFamily:FONT.mono,fontSize:'0.85rem',letterSpacing:'0.22em',color:COLOR.textGhost,marginBottom:'0.7rem'}}>RECOMMENDED FOR YOU</div>
-              <div className="mirror-styles-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'0.5rem',marginBottom:'0.5rem'}}>
-                {(result.styles||[]).map((st,i)=>(
-                  <motion.div key={i} style={{border:'1px solid rgba(212,175,55,0.15)',borderRadius:8,overflow:'hidden',cursor:'pointer'}} whileHover={{scale:1.02,borderColor:'rgba(212,175,55,0.45)'}}>
-                    <img
-                      src={`https://picsum.photos/seed/${(st.searchKeyword||st.label||'style'+i).replace(/[^a-zA-Z0-9]/g,'')}/200/140`}
-                      alt={st.label}
-                      style={{width:'100%',height:80,objectFit:'cover',display:'block'}}
-                      onError={e=>{e.target.style.display='none';}}
-                    />
-                    <div style={{fontFamily:FONT.mono,fontSize:'0.75rem',letterSpacing:'0.1em',color:COLOR.textMuted,padding:'0.35rem 0.4rem',textAlign:'center'}}>{st.label}</div>
-                  </motion.div>
+              <div style={{fontFamily:FONT.mono,fontSize:'0.85rem',letterSpacing:'0.22em',color:COLOR.textGhost,marginBottom:'0.7rem'}}>RECOMMENDED SALONS</div>
+              <div className="mirror-salons-list" style={{display:'flex',flexDirection:'column',gap:'1rem',marginBottom:'1rem', textAlign:'left'}}>
+                {recommendedSalons.map((salon, i) => (
+                  <SalonCard key={salon._id || i} salon={salon} idx={i} isMatch={true} />
                 ))}
               </div>
               <div style={{display:'flex',gap:'0.75rem',marginTop:'1rem'}}>

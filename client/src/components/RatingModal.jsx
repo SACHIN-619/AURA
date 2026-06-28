@@ -66,64 +66,76 @@ export default function RatingModal({ salon, existingReviews = [], onClose, onSu
       <div style={S.back} onClick={onClose} />
       <motion.div style={S.box} initial={{ scale: 0.92, opacity: 0, y: 24 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.92, opacity: 0 }} transition={{ type: 'spring', stiffness: 200, damping: 22 }}>
         <button style={S.close} onClick={onClose}>✕</button>
-        <div style={{ textAlign: 'center', marginBottom: '1.1rem' }}>
-          <div style={{ fontFamily: FONT.display, fontSize: '1.4rem', fontWeight: 300, color: COLOR.textPrimary }}>Rate this salon</div>
-          <p style={{ fontFamily: FONT.mono, fontSize: '0.45rem', letterSpacing: '0.15em', color: COLOR.textMuted, marginTop: '0.2rem' }}>{salon?.name}</p>
-        </div>
-
-        {/* Star picker */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '0.4rem', marginBottom: '1rem' }}>
-          {[1,2,3,4,5].map(n => (
-            <button key={n} onClick={() => setStars(n)} onMouseEnter={() => setHoverStar(n)} onMouseLeave={() => setHoverStar(0)} style={S.starBtn}>
-              <svg viewBox="0 0 100 100" width="28" height="28">
-                <path d="M50,8 L63,35 L93,39 L71,60 L76,90 L50,76 L24,90 L29,60 L7,39 L37,35 Z"
-                  fill={(hoverStar || stars) >= n ? COLOR.gold : 'rgba(212,175,55,0.18)'} />
-              </svg>
-            </button>
-          ))}
-        </div>
-
-        <Field label="Your Name *">
-          <input style={{...S.inp, opacity: user?.name ? 0.6 : 1}} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Priya Sharma" maxLength={60} readOnly={!!user?.name} />
-        </Field>
-        <Field label="Email *">
-          <input style={{...S.inp, opacity: user?.email ? 0.6 : 1}} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com" readOnly={!!user?.email} />
-        </Field>
-
-        {/* Live, honest verification status */}
-        {eligibility && (
-          <div style={S.eligibilityRow}>
-            {eligibility.eligibleForVerified ? (
-              <><VerifiedBadge size={13} /><span style={S.eligText}>You booked this salon — your rating will be AuraVerified</span></>
-            ) : (
-              <span style={S.eligTextMuted}>No booking found for this email — your rating will be unverified</span>
-            )}
+        
+        {!user ? (
+          <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+            <div style={{ fontFamily: FONT.display, fontSize: '1.4rem', color: COLOR.textPrimary, marginBottom: '1rem' }}>Login Required</div>
+            <p style={{ fontFamily: FONT.mono, fontSize: '0.8rem', color: COLOR.textMuted, marginBottom: '1.5rem', lineHeight: 1.5 }}>
+              Please log in first to give a rating for {salon?.name}.
+            </p>
           </div>
-        )}
+        ) : (
+          <>
+            <div style={{ textAlign: 'center', marginBottom: '1.1rem' }}>
+              <div style={{ fontFamily: FONT.display, fontSize: '1.4rem', fontWeight: 300, color: COLOR.textPrimary }}>Rate this salon</div>
+              <p style={{ fontFamily: FONT.mono, fontSize: '0.45rem', letterSpacing: '0.15em', color: COLOR.textMuted, marginTop: '0.2rem' }}>{salon?.name}</p>
+            </div>
 
-        <Field label="Comment (optional)">
-          <textarea style={{ ...S.inp, height: 60, resize: 'none' }} value={comment} onChange={e => setComment(e.target.value)} placeholder={t('rating_comment_placeholder')} maxLength={500} />
-        </Field>
+            {/* Star picker */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.4rem', marginBottom: '1rem' }}>
+              {[1,2,3,4,5].map(n => (
+                <button key={n} onClick={() => setStars(n)} onMouseEnter={() => setHoverStar(n)} onMouseLeave={() => setHoverStar(0)} style={S.starBtn}>
+                  <svg viewBox="0 0 100 100" width="28" height="28">
+                    <path d="M50,8 L63,35 L93,39 L71,60 L76,90 L50,76 L24,90 L29,60 L7,39 L37,35 Z"
+                      fill={(hoverStar || stars) >= n ? COLOR.gold : 'rgba(212,175,55,0.18)'} />
+                  </svg>
+                </button>
+              ))}
+            </div>
 
-        <motion.button style={{ ...S.submit, opacity: busy ? 0.6 : 1 }} onClick={submit} disabled={busy} whileHover={busy ? {} : { filter: 'brightness(1.06)' }} whileTap={busy ? {} : { scale: 0.98 }}>
-          {busy ? 'Submitting…' : `✦ ${t('rating_submit')}`}
-        </motion.button>
+            <Field label="Your Name *">
+              <input style={{...S.inp, opacity: user?.name ? 0.6 : 1}} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Priya Sharma" maxLength={60} readOnly={!!user?.name} />
+            </Field>
+            <Field label="Email *">
+              <input style={{...S.inp, opacity: user?.email ? 0.6 : 1}} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com" readOnly={!!user?.email} />
+            </Field>
 
-        {/* Existing reviews preview */}
-        {existingReviews.length > 0 && (
-          <div style={{ marginTop: '1.2rem', borderTop: '1px solid rgba(212,175,55,0.1)', paddingTop: '0.9rem' }}>
-            <div style={{ fontFamily: FONT.mono, fontSize: '0.42rem', letterSpacing: '0.2em', color: COLOR.textGhost, marginBottom: '0.6rem' }}>RECENT REVIEWS</div>
-            {existingReviews.slice(0, 4).map((rv, i) => (
-              <div key={i} style={S.reviewItem}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.2rem' }}>
-                  <span style={{ fontFamily: FONT.body, fontSize: '0.78rem', color: COLOR.textPrimary }}>{rv.customerName}</span>
-                  {rv.isVerified && <VerifiedBadge size={11} />}
-                  <span style={{ fontFamily: FONT.mono, fontSize: '0.4rem', color: COLOR.gold, marginLeft: 'auto' }}>{'★'.repeat(rv.stars)}</span>
-                </div>
-                {rv.comment && <p style={{ fontFamily: FONT.body, fontSize: '0.74rem', color: COLOR.textMuted, lineHeight: 1.5 }}>{rv.comment}</p>}
+            {/* Live, honest verification status */}
+            {eligibility && (
+              <div style={S.eligibilityRow}>
+                {eligibility.eligibleForVerified ? (
+                  <><VerifiedBadge size={13} /><span style={S.eligText}>You booked this salon — your rating will be AuraVerified</span></>
+                ) : (
+                  <span style={S.eligTextMuted}>No booking found for this email — your rating will be unverified</span>
+                )}
               </div>
-            ))}
-          </div>
+            )}
+
+            <Field label="Comment (optional)">
+              <textarea style={{ ...S.inp, height: 60, resize: 'none' }} value={comment} onChange={e => setComment(e.target.value)} placeholder={t('rating_comment_placeholder')} maxLength={500} />
+            </Field>
+
+            <motion.button style={{ ...S.submit, opacity: busy ? 0.6 : 1 }} onClick={submit} disabled={busy} whileHover={busy ? {} : { filter: 'brightness(1.06)' }} whileTap={busy ? {} : { scale: 0.98 }}>
+              {busy ? 'Submitting…' : `✦ ${t('rating_submit')}`}
+            </motion.button>
+
+            {/* Existing reviews preview */}
+            {existingReviews.length > 0 && (
+              <div style={{ marginTop: '1.2rem', borderTop: '1px solid rgba(212,175,55,0.1)', paddingTop: '0.9rem' }}>
+                <div style={{ fontFamily: FONT.mono, fontSize: '0.42rem', letterSpacing: '0.2em', color: COLOR.textGhost, marginBottom: '0.6rem' }}>RECENT REVIEWS</div>
+                {existingReviews.slice(0, 4).map((rv, i) => (
+                  <div key={i} style={S.reviewItem}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.2rem' }}>
+                      <span style={{ fontFamily: FONT.body, fontSize: '0.78rem', color: COLOR.textPrimary }}>{rv.customerName}</span>
+                      {rv.isVerified && <VerifiedBadge size={11} />}
+                      <span style={{ fontFamily: FONT.mono, fontSize: '0.4rem', color: COLOR.gold, marginLeft: 'auto' }}>{'★'.repeat(rv.stars)}</span>
+                    </div>
+                    {rv.comment && <p style={{ fontFamily: FONT.body, fontSize: '0.74rem', color: COLOR.textMuted, lineHeight: 1.5 }}>{rv.comment}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </motion.div>
     </motion.div>

@@ -30,7 +30,7 @@ CRITICAL RULES:
 2. If the user is making GENERAL CONVERSATION (greetings, asking how you are, grooming tips, general questions NOT asking to find a salon), respond naturally AND leave searchParams as an empty object {}. Do NOT search for salons just because someone says "hi" or "how are you".
 3. Only search for salons when the user CLEARLY asks to find/book/discover/recommend a salon, barber, spa, or specific beauty service.
 4. DO NOT ask for location if the user requests a service — search all hubs instead.
-5. We do NOT have real pricing or star ratings. Never invent them.
+5. We do NOT have real pricing, phone numbers, or star ratings. Never invent or hallucinate them. Only provide salon names and brief descriptions.
 
 ${hubLine}
 ${locLine}

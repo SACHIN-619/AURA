@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API } from '../context/AuraContext';
 import { COLOR, FONT } from '../utils/tokens';
+import SalonCard from './SalonCard';
 
 export default function AiChatbot({ currentHub }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -146,14 +147,9 @@ export default function AiChatbot({ currentHub }) {
                         <div style={S.salonList}>
                           <div style={S.salonListLabel}>✦ Recommended Salons</div>
                           {goodSalons.slice(0, 3).map((s, i) => (
-                            <a
-                              key={i}
-                              href={`/?hub=${encodeURIComponent(s.hub || '')}`}
-                              style={S.salonChip}
-                            >
-                              <span style={{ fontWeight: 700 }}>{s.name}</span>
-                              {s.hub && <span style={{ fontWeight: 400, opacity: 0.7, fontSize: '0.62rem', display: 'block', marginTop: '0.1rem' }}>📍 {s.hub}</span>}
-                            </a>
+                            <div key={i} style={{ marginBottom: '0.8rem', textAlign: 'left' }}>
+                              <SalonCard salon={s} idx={i} isMatch={true} />
+                            </div>
                           ))}
                         </div>
                       );

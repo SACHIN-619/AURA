@@ -146,7 +146,7 @@ export const updateAvatar = async (req, res) => {
   if (!isUploadConfigured()) {
     return res.status(503).json({
       success: false,
-      error: 'Avatar upload is not configured on this server. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in .env (free tier, no card required at cloudinary.com).',
+      error: 'Avatar upload is temporarily unavailable.',
     });
   }
   const { imageBase64 } = req.body;

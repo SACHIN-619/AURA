@@ -114,3 +114,55 @@ select option{background:#0d0a13;}
   50% { opacity: 0.4; transform: scale(1.4); }
   100% { opacity: 1; transform: scale(1); }
 }
+
+/* Owner Dashboard Layout Responsive */
+.owner-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--c-void-deep);
+}
+.owner-sidebar {
+  width: 260px;
+  background: rgba(15,11,22,0.85);
+  border-right: 1px solid var(--c-edge);
+  padding: 2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  transition: transform 0.3s ease;
+  z-index: 1000;
+}
+.owner-main {
+  flex: 1;
+  background: radial-gradient(circle at top right, #140e1f, var(--c-void-deep));
+  overflow-y: auto;
+}
+.owner-hamburger {
+  display: none;
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 1100;
+  background: var(--c-void);
+  border: 1px solid var(--c-edge);
+  border-radius: 8px;
+  padding: 0.5rem;
+  color: var(--c-text-primary);
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+@media (max-width: 768px) {
+  .owner-hamburger { display: block; }
+  .owner-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    transform: translateX(-100%);
+  }
+  .owner-sidebar.mobile-open {
+    transform: translateX(0);
+  }
+  .owner-main { padding-top: 4rem; }
+}

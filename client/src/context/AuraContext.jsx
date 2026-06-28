@@ -237,7 +237,7 @@ export const AuraProvider = ({children}) => {
 
       if(!list.length) {
         list=buildDemoSalons(hub);
-        pushToast('Showing demo data — connect backend for live salons','info');
+        pushToast('Showing sample data — connect backend for live salons','info');
       }
 
       const ranked=[...list].sort((a,b)=>auraScore(b,loc?.lat,loc?.lon)-auraScore(a,loc?.lat,loc?.lon));
@@ -247,7 +247,7 @@ export const AuraProvider = ({children}) => {
       const demo=buildDemoSalons(hub);
       setSalons(demo);
       setStats({total:demo.length});
-      pushToast('Demo mode — backend unreachable','info');
+      pushToast('Offline mode — backend unreachable','info');
     } finally { setLoading(false); setSyncing(false); }
   },[pushToast,userLocation]);
 
