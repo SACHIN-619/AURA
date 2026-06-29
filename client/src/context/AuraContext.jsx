@@ -235,8 +235,17 @@ export const AuraProvider = ({children}) => {
       }
 
       if(!list.length) {
+        // Auto-retry once after 6s to handle Render cold-start delays
+        try {
+          await new Promise(r => setTimeout(r, 6000));
+          const {data:retry}=await axios.get(`${API}/api/salons`,{params:{hub,limit:60},timeout:10000});
+          list=retry.data||[];
+        } catch{}
+      }
+
+      if(!list.length) {
         list=buildDemoSalons(hub);
-        pushToast('Showing sample data — connect backend for live salons','info');
+        pushToast('✦ Connecting to AURA servers — salons loading shortly…','info');
       }
 
       const ranked=[...list].sort((a,b)=>auraScore(b,loc?.lat,loc?.lon)-auraScore(a,loc?.lat,loc?.lon));
@@ -246,7 +255,7 @@ export const AuraProvider = ({children}) => {
       const demo=buildDemoSalons(hub);
       setSalons(demo);
       setStats({total:demo.length});
-      pushToast('Offline mode — backend unreachable','info');
+      pushToast('⚠ Having trouble reaching our servers — please try again in a moment.','warning');
     } finally { setLoading(false); setSyncing(false); }
   },[pushToast,userLocation]);
 
@@ -271,7 +280,7 @@ export const AuraProvider = ({children}) => {
       if(data.searchParams?.hub) setActiveHub(data.searchParams.hub);
       return data;
     } catch {
-      pushToast('AI unavailable — check API keys in .env','error');
+      pushToast('AI search is temporarily unavailable — try browsing hubs manually.','warning');
       return null;
     }
     finally { setLoading(false); }

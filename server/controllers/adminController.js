@@ -411,3 +411,132 @@ export const respondToClaim = async (req, res) => {
   }
 };
 
+// ── Full shop browsing for admin (replaces need to open MongoDB Compass) ────
+export const getAllSalons = async (req, res) => {
+  try {
+    const { search = '', hub = '', disabled, page = 1, limit = 20 } = req.query;
+    const filter = {};
+    if (search) filter.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { hub:  { $regex: search, $options: 'i' } },
+    ];
+    if (hub) filter.hub = new RegExp(hub, 'i');
+    if (disabled === 'true')  filter.disabled = true;
+    if (disabled === 'false') filter.disabled = { $ne: true };
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const [salons, total] = await Promise.all([
+      Salon.find(filter)
+        .select('name hub address contact description openingHours serviceCategories customTags servesGender images priceTier tier isFeatured listingVerified disabled disabledReason claimStatus owner ratingSource luxuryRating reviewCount createdAt')
+        .populate('owner', 'name email')
+        .sort({ createdAt: -1 })
+        .skip(skip).limit(parseInt(limit)).lean(),
+      Salon.countDocuments(filter),
+    ]);
+    return res.json({ success: true, salons, meta: { total, page: parseInt(page), totalPages: Math.ceil(total / parseInt(limit)) } });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// ── Edit any salon field directly from the admin dashboard ──────────────────
+export const updateSalon = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, hub, address, contact, description, openingHours, serviceCategories, customTags, servesGender, images, priceTier, tier, isFeatured } = req.body;
+
+    const update = { lastSyncedAt: new Date() };
+    if (name          !== undefined) update.name              = name;
+    if (hub           !== undefined) update.hub               = hub;
+    if (address       !== undefined) update.address           = address;
+    if (contact       !== undefined) update.contact           = contact;
+    if (description   !== undefined) update.description       = description;
+    if (openingHours  !== undefined) update.openingHours      = openingHours;
+    if (serviceCategories !== undefined) update.serviceCategories = serviceCategories;
+    if (customTags    !== undefined) update.customTags        = customTags;
+    if (servesGender  !== undefined) update.servesGender      = servesGender;
+    if (priceTier     !== undefined) update.priceTier         = priceTier;
+    if (tier          !== undefined) update.tier              = tier;
+    if (isFeatured    !== undefined) update.isFeatured        = isFeatured;
+    if (images) {
+      if (images.banner    !== undefined) update['images.banner']    = images.banner;
+      if (images.thumbnail !== undefined) update['images.thumbnail'] = images.thumbnail;
+      if (images.gallery   !== undefined) update['images.gallery']   = images.gallery;
+    }
+
+    const salon = await Salon.findByIdAndUpdate(id, { $set: update }, { new: true, runValidators: true })
+      .select('name hub address contact description openingHours serviceCategories customTags servesGender images priceTier tier isFeatured listingVerified disabled').lean();
+
+    if (!salon) return res.status(404).json({ success: false, error: 'Salon not found' });
+    return res.json({ success: true, salon, message: `"${salon.name}" updated successfully.` });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// ── Enable / Disable a salon listing ────────────────────────────────────────
+export const toggleSalonDisabled = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { disabled, reason } = req.body;
+    const update = disabled
+      ? { disabled: true,  disabledAt: new Date(), disabledBy: req.user.sub, disabledReason: reason || null }
+      : { disabled: false, disabledAt: null,       disabledBy: null,         disabledReason: null };
+    const salon = await Salon.findByIdAndUpdate(id, { $set: update }, { new: true }).select('name hub disabled').lean();
+    if (!salon) return res.status(404).json({ success: false, error: 'Salon not found' });
+    return res.json({ success: true, message: disabled ? `"${salon.name}" hidden from public.` : `"${salon.name}" is live again.`, salon });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// ── Enable / Disable a user account ─────────────────────────────────────────
+export const toggleUserDisabled = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { disabled, reason } = req.body;
+    const update = disabled
+      ? { disabled: true,  disabledAt: new Date(), disabledReason: reason || 'Account suspended by admin.' }
+      : { disabled: false, disabledAt: null,       disabledReason: null };
+    const user = await User.findByIdAndUpdate(id, { $set: update }, { new: true }).select('name email disabled').lean();
+    if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+    return res.json({ success: true, message: disabled ? `${user.name} suspended.` : `${user.name} re-enabled.`, user });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// ── Area expansion intelligence feed ────────────────────────────────────────
+export const getNullSearches = async (req, res) => {
+  try {
+    const since = new Date(Date.now() - 30 * 86400000);
+    const raw = await Analytics.aggregate([
+      { $match: { event: 'null_area_search', createdAt: { $gte: since } } },
+      { $group: { _id: { $toLower: { $ifNull: ['$metadata.query', 'unknown'] } }, count: { $sum: 1 }, resolvedName: { $first: '$metadata.resolvedName' }, lastSeenAt: { $max: '$createdAt' } } },
+      { $sort: { count: -1 } },
+      { $limit: 50 },
+    ]);
+    return res.json({ success: true, nullSearches: raw });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// ── Dismiss a report on a salon ──────────────────────────────────────────────
+export const dismissReport = async (req, res) => {
+  try {
+    const { id, reportId } = req.params;
+    const { action } = req.body; // 'resolved' | 'dismissed'
+    if (!['resolved', 'dismissed'].includes(action))
+      return res.status(400).json({ success: false, error: 'action must be resolved or dismissed' });
+    const salon = await Salon.findOneAndUpdate(
+      { _id: id, 'reports._id': reportId },
+      { $set: { 'reports.$.status': action } },
+      { new: true }
+    ).select('name reports');
+    if (!salon) return res.status(404).json({ success: false, error: 'Salon or report not found' });
+    return res.json({ success: true, message: `Report marked as ${action}.` });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};

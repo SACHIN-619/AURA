@@ -17,6 +17,24 @@ export default function AuthModal({ onClose, onAuthed }) {
 
   const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); setError(''); };
 
+  const friendlyError = (msg = '') => {
+    if (!msg || msg.toLowerCase().includes('failed to fetch') || msg.includes('networkerror') || msg.includes('err_internet'))
+      return 'Connection failed — our servers may be warming up. Please try again in 30 seconds.';
+    if (msg.includes('502') || msg.includes('503') || msg.includes('504'))
+      return 'Server is starting up. This usually takes under a minute on first load — please try again shortly.';
+    if (msg.includes('401') || msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('credentials') || msg.toLowerCase().includes('incorrect'))
+      return 'Incorrect email or password. Please check and try again.';
+    if (msg.includes('404') || msg.toLowerCase().includes('not found'))
+      return 'No account found with this email. Try signing up instead.';
+    if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('exists'))
+      return 'An account with this email already exists. Try logging in instead.';
+    if (msg.toLowerCase().includes('suspended') || msg.toLowerCase().includes('disabled'))
+      return 'This account has been suspended. Please contact support.';
+    if (msg.toLowerCase().includes('password') && msg.toLowerCase().includes('8'))
+      return 'Password must be at least 8 characters.';
+    return msg || 'Something went wrong. Please try again.';
+  };
+
   const submit = async () => {
     setBusy(true); setError('');
     try {
@@ -37,7 +55,7 @@ export default function AuthModal({ onClose, onAuthed }) {
       onAuthed?.(d.user, d.token);
       onClose();
     } catch (e) {
-      setError(e.message);
+      setError(friendlyError(e.message));
     } finally {
       setBusy(false);
     }

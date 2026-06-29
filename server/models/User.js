@@ -36,7 +36,12 @@ const UserSchema = new mongoose.Schema({
     imageUrl: String,
     result: mongoose.Schema.Types.Mixed,
     createdAt: { type: Date, default: Date.now }
-  }]
+  }],
+
+  // Admin can suspend an account without deleting it
+  disabled:       { type: Boolean, default: false },
+  disabledAt:     { type: Date, default: null },
+  disabledReason: { type: String, default: null },
 }, { timestamps: true, versionKey: false });
 
 UserSchema.methods.setPassword = async function (plain) {

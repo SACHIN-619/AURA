@@ -7,7 +7,7 @@ import mongoose from 'mongoose';
 export const getSalons = async (req, res) => {
   try {
     const { hub, category, gender, page = 1, limit = 60, sort = 'name' } = req.query;
-    const filter = {};
+    const filter = { disabled: { $ne: true } }; // never show disabled salons to users
     if (hub) filter.hub = new RegExp(hub, 'i');
     if (category) filter.serviceCategories = category;
     if (gender && gender !== 'any') filter.servesGender = gender;
@@ -28,7 +28,7 @@ export const getSalons = async (req, res) => {
 
 export const getSalonById = async (req, res) => {
   try {
-    const s = await Salon.findById(req.params.id).lean();
+    const s = await Salon.findOne({ _id: req.params.id, disabled: { $ne: true } }).lean();
     if (!s) return res.status(404).json({ success: false, error: 'Salon not found' });
     return res.json({ success: true, data: s });
   } catch (e) {

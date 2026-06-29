@@ -21,7 +21,7 @@ const LEVEL_NAMES = ['', 'Newcomer', 'Explorer', 'Enthusiast', 'Connoisseur', 'C
 const BASE_TABS = [
   { id: 'overview', icon: '◈', label: 'Overview' },
   { id: 'bookings', icon: '📋', label: 'Bookings' },
-  { id: 'ratings',  icon: '★',  label: 'My Reviews' },
+  { id: 'ratings',  icon: '★',  label: 'My Ratings' },
   { id: 'shop',     icon: '🏪', label: 'My Shop' },
   { id: 'settings', icon: '⚙',  label: 'Settings' },
 ];
@@ -82,15 +82,15 @@ function OverviewTab({ data, progress }) {
         ))}
       </div>
 
-      {/* Owner Funnel Banner — hidden for admins and existing owners */}
-      {!isAdmin && !isOwner && !hasClaim && (
-        <div style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(255,242,168,0.05))', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 12, padding: '1.2rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+      {/* Admin Quick Link */}
+      {isAdmin && (
+        <a href="/admin" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.9rem 1.1rem', background: 'rgba(239,83,80,0.07)', border: '1px solid rgba(239,83,80,0.25)', borderRadius: 12, marginBottom: '1.5rem', textDecoration: 'none' }}>
           <div>
-            <h3 style={{ fontFamily: FONT.display, fontSize: '1.2rem', color: COLOR.gold, margin: '0 0 0.3rem 0' }}>Own a premium salon?</h3>
-            <p style={{ fontFamily: FONT.body, fontSize: '0.85rem', color: COLOR.textPrimary, margin: 0, opacity: 0.9 }}>Join AURA Marketplace and manage your business like never before.</p>
+            <div style={{ fontFamily: FONT.mono, fontSize: '0.55rem', letterSpacing: '0.15em', color: '#EF9A9A', marginBottom: '0.2rem' }}>ADMIN ACCESS</div>
+            <div style={{ fontFamily: FONT.body, fontSize: '0.9rem', color: COLOR.textPrimary }}>Open Admin Dashboard</div>
           </div>
-          <a href="/propose-shop" style={{ padding: '0.6rem 1.2rem', background: COLOR.gold, color: '#000', borderRadius: 8, fontFamily: FONT.mono, fontSize: '0.75rem', fontWeight: 'bold', textDecoration: 'none', letterSpacing: '0.05em' }}>Claim Your Shop ✦</a>
-        </div>
+          <span style={{ color: '#EF9A9A', fontSize: '1.2rem' }}>→</span>
+        </a>
       )}
 
       {/* Recent Bookings */}
@@ -408,6 +408,15 @@ function SettingsTab({ token, hasAvatar, onAvatarRemoved, onDeleteAccount, delet
           <button style={ST.dangerBtn} onClick={removeAvatar}>Remove Profile Photo</button>
         </div>
       )}
+
+      {/* Salon Owner Section — tucked here, opt-in for interested users only */}
+      <div style={{ ...ST.card, borderColor: 'rgba(212,175,55,0.08)', background: 'rgba(212,175,55,0.015)' }}>
+        <div style={{ fontFamily: FONT.mono, fontSize: '0.55rem', letterSpacing: '0.14em', color: 'rgba(212,175,55,0.4)', marginBottom: '0.5rem' }}>FOR SALON OWNERS</div>
+        <p style={{ fontFamily: FONT.body, fontSize: '0.78rem', color: COLOR.textGhost, lineHeight: 1.5, marginBottom: '0.75rem' }}>
+          If you own a luxury salon listed on AURA, you can claim it to manage pricing, respond to reviews, and receive a verified badge.
+        </p>
+        <a href="/propose-shop" style={{ ...ST.goldBtn, display: 'block', textAlign: 'center', textDecoration: 'none', opacity: 0.7 }}>List or Claim My Salon ✦</a>
+      </div>
 
       <div style={ST.card}>
         <div style={{ fontFamily: FONT.mono, fontSize: '0.58rem', letterSpacing: '0.14em', color: '#EF9A9A', marginBottom: '0.5rem' }}>DANGER ZONE</div>

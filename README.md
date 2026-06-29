@@ -46,7 +46,7 @@ npm run seed             # from root — syncs all 8 Hyderabad hubs from OSM
 
 **Multi-language** — English, Hindi, Telugu, Urdu (with RTL layout) across the core flows.
 
-**Admin dashboard** (`/admin`) — platform overview, rating moderation, listing verification, real analytics (views/clicks/searches/conversions), data-gap report by hub.
+**Admin dashboard** (`/admin`) — comprehensive platform overview, rating moderation, listing verification, full shop CRUD operations (search, filter, edit details, disable/enable), user management (suspend, role updates), claim management, reports resolution, and **Expansion Intelligence** (tracking zero-result searches to identify unserved high-demand areas).
 
 **Demo mode** — realistic fallback data if OSM/backend is unreachable, clearly labeled, never a blank screen.
 

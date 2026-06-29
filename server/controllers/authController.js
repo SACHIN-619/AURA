@@ -115,6 +115,15 @@ export const login = async (req, res) => {
     if (!user || !(await user.checkPassword(password))) {
       return res.status(401).json({ success: false, error: 'Invalid email or password' });
     }
+
+    // Check if the account has been suspended by an admin
+    if (user.disabled) {
+      return res.status(403).json({
+        success: false,
+        error: 'This account has been suspended. If you believe this is an error, please contact support.',
+      });
+    }
+
     user.lastActiveAt = new Date();
     await user.save();
 

@@ -425,9 +425,14 @@ export default function LocationOnboarding({ onComplete }) {
           const res = await resolveNearestHub(pos.coords.latitude, pos.coords.longitude);
           if (res?.inServiceArea && res?.hub) {
             await pickHub(res.hub);
-          } else {
+          } else if (res?.distanceKm && res.distanceKm <= 60) {
+            // GPS placed them inside 60km but we have no hub match — they're in Hyderabad
             setStage('search');
-            setErrorMsg("We currently only serve the luxury market in Hyderabad. Please select or search for an area in Hyderabad manually.");
+            setErrorMsg(`📍 You're in Hyderabad! We just don’t have listings in your exact spot yet. Pick a nearby area below — we’ve logged your location for future coverage.`);
+          } else {
+            // Genuinely outside our service area
+            setStage('search');
+            setErrorMsg(`📍 Looks like you’re ${res?.distanceKm ? `${res.distanceKm}km away from Hyderabad` : 'outside Hyderabad'}. AURA currently serves Hyderabad — search or pick a hub below.`);
           }
         } catch {
           setStage('search');
@@ -585,8 +590,12 @@ function SearchStage({ t, query, results, hubs, busy, setQuery, setResults, onPi
             setResults(combined);
 
             if (combined.length === 0) {
-              // Geocoding found things but they aren't in Hyderabad. Try AI fallback.
-              await tryAiFallback(val, localFiltered);
+              // Geocoding found places but none within 60km of Hyderabad
+              // Track as a null search for admin expansion intelligence
+              await trackNullSearch(val, data[0]?.display_name?.split(',')[0] || val);
+              setErrorMsg(
+                `\u201c${val}\u201d appears to be outside our current service area. AURA covers Hyderabad — try searching a locality within the city.`
+              );
             }
           } else {
             // Geocoding returned nothing, let's try AI fallback
@@ -604,23 +613,46 @@ function SearchStage({ t, query, results, hubs, busy, setQuery, setResults, onPi
     }, 600);
   };
 
+  // Hyderabad center coordinates for distance check
+  const HYD_LAT = 17.3850, HYD_LON = 78.4867;
+
+  // Track zero-result searches so admin can see where to expand
+  const trackNullSearch = async (query, resolvedName) => {
+    try {
+      await fetch(`/api/bookings/track`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'null_area_search', metadata: { query, resolvedName } })
+      });
+    } catch { /* non-critical */ }
+  };
+
   const tryAiFallback = async (val, localFiltered) => {
     try {
-      const aiRes = await fetch(`${API}/api/search/geocode-ai?q=${encodeURIComponent(val.trim())}`);
+      const aiRes = await fetch(`/api/search/geocode-ai?q=${encodeURIComponent(val.trim())}`);
       const aiData = await aiRes.json();
       if (aiData.success && aiData.result?.isValid) {
         const r = aiData.result;
-        // Check if this AI suggested hub is actually an existing hub
         const existing = hubs.find(h => h.hub.toLowerCase() === r.hub.toLowerCase());
         const finalHub = existing || { hub: r.hub, lat: r.lat, lon: r.lon, count: 0, isNewHub: true };
         const combined = [...localFiltered, finalHub];
         setResults(combined);
         setErrorMsg('');
       } else {
-        if (localFiltered.length === 0) setErrorMsg("We currently only serve the luxury market in Hyderabad. We'll be expanding soon!");
+        if (localFiltered.length === 0) {
+          // AI also couldn’t resolve it — check if the raw query sounds like a Hyderabad area
+          // by doing a quick distance check on the original geocoding result stored in closure
+          setErrorMsg(
+            `Hmm, we couldn’t find \u201c${val}\u201d. Try a different spelling or pick a popular hub below.`
+          );
+          trackNullSearch(val, null);
+        }
       }
-    } catch (aiErr) {
-      if (localFiltered.length === 0) setErrorMsg("We currently only serve the luxury market in Hyderabad. We'll be expanding soon!");
+    } catch {
+      if (localFiltered.length === 0) {
+        setErrorMsg(`Hmm, we couldn’t locate \u201c${val}\u201d — try a different spelling or browse popular hubs below.`);
+        trackNullSearch(val, null);
+      }
     }
   };
 

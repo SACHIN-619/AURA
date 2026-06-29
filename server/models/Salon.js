@@ -36,7 +36,13 @@ const SalonSchema = new mongoose.Schema({
   },
 
   serviceCategories: { type: [String], default: [] },
+  customTags:        { type: [String], default: [] }, // admin-defined extra categories
   servesGender: { type: String, enum: ['unisex','male','female', null], default: null },
+
+  disabled: { type: Boolean, default: false }, // admin can hide without deleting
+  disabledAt: { type: Date, default: null },
+  disabledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  disabledReason: { type: String, default: null },
 
   luxuryRating:  { type: Number, min: 1, max: 5, default: null },
   reviewCount:   { type: Number, default: null },
