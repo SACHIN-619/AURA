@@ -38,6 +38,29 @@ export default function RatingDisplay({ salon }) {
   }
 
   if (stats.totalCount === 0) {
+    // If the salon has a seeded luxuryRating, show it as a fallback with a note
+    if (salon.luxuryRating) {
+      return (
+        <>
+          <div style={S.emptyRow}>
+            <Stars value={salon.luxuryRating} />
+            <span style={S.avgNum}>{salon.luxuryRating.toFixed(1)}</span>
+            {salon.reviewCount && <span style={S.count}>({salon.reviewCount})</span>}
+            <span style={S.listingTag}>listing</span>
+            <RateItButton onClick={() => setShowModal(true)} />
+          </div>
+          <AnimatePresence>
+            {showModal && (
+              <RatingModal
+                salon={salon}
+                onClose={() => setShowModal(false)}
+                onSubmitted={() => { setShowModal(false); fetchStats(); }}
+              />
+            )}
+          </AnimatePresence>
+        </>
+      );
+    }
     return (
       <>
         <div style={S.emptyRow}>
@@ -63,6 +86,7 @@ export default function RatingDisplay({ salon }) {
       </>
     );
   }
+
 
 
   return (
@@ -125,8 +149,10 @@ const S = {
   ratingRow:    { display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'none', border: 'none', cursor: 'pointer', padding: '0.15rem 0' },
   avgNum:       { fontFamily: FONT.body, fontSize: '0.74rem', fontWeight: 600, color: COLOR.gold },
   count:        { fontFamily: FONT.body, fontSize: '0.7rem', color: COLOR.textGhost },
+  listingTag:   { fontFamily: FONT.mono, fontSize: '0.52rem', color: 'rgba(212,175,55,0.5)', letterSpacing: '0.06em', padding: '0.1rem 0.3rem', border: '1px solid rgba(212,175,55,0.15)', borderRadius: 3 },
   verifiedRow:  { display: 'flex', alignItems: 'center', gap: '0.22rem', marginLeft: '0.2rem' },
   verifiedText: { fontFamily: FONT.body, fontSize: '0.66rem', fontWeight: 500, color: COLOR.gold },
   loading:      { fontFamily: FONT.body, fontSize: '0.7rem', color: COLOR.textGhost, fontStyle: 'italic' },
   demoNote:     { fontFamily: FONT.body, fontSize: '0.7rem', color: COLOR.textGhost, fontStyle: 'italic' },
 };
+

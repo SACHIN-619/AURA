@@ -103,13 +103,12 @@ export const AuraProvider = ({children}) => {
   }); 
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
-  const login = (email, password) => {
-    if (email === 'sachinkr52990@gmail.com' || email.includes('admin')) {
-      setUser({ id: 'a1', name: 'Sachin Admin', email, role: 'admin' });
-    } else {
-      setUser({ id: 'u1', name: 'Alex Johnson', email, role: 'user' });
+  const login = (userData, token) => {
+    if (token) localStorage.setItem('aura_token', token);
+    if (userData) {
+      localStorage.setItem('aura_user', JSON.stringify(userData));
+      setUser(userData);
     }
-    setAuthModalOpen(false);
   };
 
   const logout = () => {

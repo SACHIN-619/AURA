@@ -14,12 +14,14 @@ import AuthModal from './components/AuthModal';
 import MyAccount from './components/MyAccount';
 import { IntroOverlay, HubLoader } from './components/CinematicOverlays';
 import DynamicTranslate from './components/DynamicTranslate';
+import NotificationCenter from './components/NotificationCenter';
 import { COLOR, FONT } from './utils/tokens';
 import { Routes, Route } from 'react-router-dom';
 import OwnerDashboardLayout from './pages/owner/OwnerDashboardLayout';
 import CoreBoutiqueMetrics from './pages/owner/CoreBoutiqueMetrics';
 import PricingCategoryManager from './pages/owner/PricingCategoryManager';
 import AiReviewControl from './pages/owner/AiReviewControl';
+import AdminDashboard from './components/AdminDashboard';
 import AdminDashboardLayout from './pages/admin/AdminDashboardLayout';
 import AdminSalonManager from './pages/admin/AdminSalonManager';
 import ProposeSalon from './pages/ProposeSalon';
@@ -73,13 +75,12 @@ function MainAppRoutes() {
         <Route path="services" element={<PricingCategoryManager />} />
         <Route path="reviews" element={<AiReviewControl />} />
       </Route>
-      <Route path="/admin" element={<AdminDashboardLayout />}>
-        <Route path="salons" element={<AdminSalonManager />} />
-      </Route>
+      {/* Admin routes handled at top level — outside AppShell */}
       <Route path="/propose-shop" element={<ProposeSalon />} />
     </Routes>
   );
 }
+
 
 function MainAuraGrid() {
   return (
@@ -161,6 +162,7 @@ function TopBar({ fontScale, setFontScale, activeHub, openOnboarding }) {
         </button>
         <TextScaleControls scale={fontScale} setScale={setFontScale} />
         <LanguageSelector />
+        <NotificationCenter />
         <AccountButton />
       </div>
     </div>
@@ -281,7 +283,6 @@ function AppShell({ showApp }) {
         )}
       </AnimatePresence>
 
-      <Toast />
 
       {/* Floating AuraMirror trigger — bottom center, always visible to guests */}
       {showApp && (onboarded || onbDone) && (
@@ -346,12 +347,25 @@ export default function App() {
   return (
     <div style={{ background: COLOR.voidDeep, minHeight: '100vh' }}>
       <AuraProvider>
-        <AnimatePresence>{showIntro && <IntroOverlay key="intro" />}</AnimatePresence>
-        <AppShell showApp={showApp} />
+        {/* Admin routes are rendered OUTSIDE AppShell — no user sidebar/topbar */}
+        <Routes>
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/salons" element={<AdminDashboardLayout />}>
+            <Route index element={<AdminSalonManager />} />
+          </Route>
+          <Route path="*" element={
+            <>
+              <AnimatePresence>{showIntro && <IntroOverlay key="intro" />}</AnimatePresence>
+              <AppShell showApp={showApp} />
+            </>
+          } />
+        </Routes>
+        <Toast />
       </AuraProvider>
     </div>
   );
 }
+
 
 const S = {
   // Layout

@@ -115,6 +115,7 @@ select option{background:#0d0a13;}
   100% { opacity: 1; transform: scale(1); }
 }
 
+
 /* Owner Dashboard Layout Responsive */
 .owner-layout {
   display: flex;
@@ -169,3 +170,100 @@ select option{background:#0d0a13;}
   }
   .owner-main { padding-top: 4rem; }
 }
+
+/* ── MyAccount Panel — Mobile Responsive ────────────────────────────────── */
+@media (max-width: 700px) {
+  /* Account layout: stack vertically instead of side-by-side */
+  .account-layout {
+    flex-direction: column !important;
+    gap: 0 !important;
+    height: auto !important;
+  }
+
+  /* Left col becomes a compact horizontal strip at top */
+  .account-layout > div:first-child {
+    width: 100% !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    padding-bottom: 0.75rem !important;
+    border-bottom: 1px solid rgba(212,175,55,0.1) !important;
+    border-right: none !important;
+    margin-bottom: 1rem !important;
+  }
+
+  /* Avatar section: more compact */
+  .account-layout > div:first-child > div:first-child {
+    margin-bottom: 0.75rem !important;
+  }
+
+  /* Tab nav becomes horizontal scrollable row */
+  .account-layout > div:first-child nav {
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    gap: 0.3rem !important;
+    width: 100% !important;
+    padding: 0.5rem 0 !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .account-layout > div:first-child nav::-webkit-scrollbar { display: none; }
+
+  /* Tab buttons: compact horizontal pills */
+  .account-layout > div:first-child nav button {
+    width: auto !important;
+    flex-shrink: 0 !important;
+    padding: 0.45rem 0.75rem !important;
+    font-size: 0.78rem !important;
+    white-space: nowrap !important;
+  }
+
+  /* Right col: remove left border/padding when stacked */
+  .account-layout > div:last-child {
+    padding-left: 0 !important;
+    border-left: none !important;
+  }
+
+  /* Stats grid: 2 columns on mobile */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ── Admin Dashboard Mobile ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .admin-tabs-scroll {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap !important;
+    padding-bottom: 0.5rem;
+  }
+  .admin-tabs-scroll::-webkit-scrollbar { display: none; }
+}
+
+/* ── General Small Screen Fixes ────────────────────────────────────────── */
+@media (max-width: 480px) {
+  /* Ensure modal doesn't overflow */
+  .auth-modal-box {
+    margin: 0.5rem !important;
+    padding: 1.5rem !important;
+  }
+
+  /* Prevent text from being too small */
+  body { font-size: 14px; }
+}
+
+/* ── Pulse animation for AI enrich button ──────────────────────────────── */
+@keyframes pulse {
+  0%, 100% { opacity: 0.8; box-shadow: 0 0 8px rgba(212,175,55,0.2); }
+  50% { opacity: 1; box-shadow: 0 0 16px rgba(212,175,55,0.4); }
+}
+
+/* ── Notification badge animation ──────────────────────────────────────── */
+@keyframes notifPop {
+  0% { transform: scale(0); }
+  70% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+.notif-badge { animation: notifPop 0.3s ease-out; }
+

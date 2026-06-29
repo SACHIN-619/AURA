@@ -18,13 +18,21 @@ function xpProgress(xp) {
 
 const LEVEL_NAMES = ['', 'Newcomer', 'Explorer', 'Enthusiast', 'Connoisseur', 'Curator', 'Elite', 'Legend'];
 
-const TABS = [
+const BASE_TABS = [
   { id: 'overview', icon: '◈', label: 'Overview' },
   { id: 'bookings', icon: '📋', label: 'Bookings' },
   { id: 'ratings',  icon: '★',  label: 'My Reviews' },
   { id: 'shop',     icon: '🏪', label: 'My Shop' },
   { id: 'settings', icon: '⚙',  label: 'Settings' },
 ];
+
+function getVisibleTabs(user) {
+  const showShop = user?.role === 'owner' || (user?.shopClaimStatus && user.shopClaimStatus !== 'none');
+  return BASE_TABS.filter(t => {
+    if (t.id === 'shop') return showShop;
+    return true;
+  });
+}
 
 // ── Notification Banner (static, can be wired to backend later) ────────────
 function NotificationBar({ role, shopStatus }) {
@@ -52,6 +60,9 @@ function NotificationBar({ role, shopStatus }) {
 // ── Overview Tab ───────────────────────────────────────────────────────────
 function OverviewTab({ data, progress }) {
   const recent = (data?.bookings || []).slice(0, 3);
+  const isAdmin = data?.user?.role === 'admin';
+  const isOwner = data?.user?.role === 'owner';
+  const hasClaim = data?.user?.shopClaimStatus && data.user.shopClaimStatus !== 'none';
   const statsItems = [
     { label: 'Bookings', value: data?.bookings?.length || 0, icon: '📋' },
     { label: 'Reviews', value: data?.ratings?.length || 0, icon: '★' },
@@ -61,7 +72,7 @@ function OverviewTab({ data, progress }) {
   return (
     <div>
       {/* Stats Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem', marginBottom: '2rem' }} className="stats-grid">
         {statsItems.map(s => (
           <div key={s.label} style={ST.statCard}>
             <div style={ST.statIcon}>{s.icon}</div>
@@ -71,14 +82,16 @@ function OverviewTab({ data, progress }) {
         ))}
       </div>
 
-      {/* Owner Funnel Banner */}
-      <div style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(255,242,168,0.05))', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 12, padding: '1.2rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-        <div>
-          <h3 style={{ fontFamily: FONT.display, fontSize: '1.2rem', color: COLOR.gold, margin: '0 0 0.3rem 0' }}>Own a premium salon?</h3>
-          <p style={{ fontFamily: FONT.body, fontSize: '0.85rem', color: COLOR.textPrimary, margin: 0, opacity: 0.9 }}>Join AURA Marketplace and manage your business like never before.</p>
+      {/* Owner Funnel Banner — hidden for admins and existing owners */}
+      {!isAdmin && !isOwner && !hasClaim && (
+        <div style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(255,242,168,0.05))', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 12, padding: '1.2rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+          <div>
+            <h3 style={{ fontFamily: FONT.display, fontSize: '1.2rem', color: COLOR.gold, margin: '0 0 0.3rem 0' }}>Own a premium salon?</h3>
+            <p style={{ fontFamily: FONT.body, fontSize: '0.85rem', color: COLOR.textPrimary, margin: 0, opacity: 0.9 }}>Join AURA Marketplace and manage your business like never before.</p>
+          </div>
+          <a href="/propose-shop" style={{ padding: '0.6rem 1.2rem', background: COLOR.gold, color: '#000', borderRadius: 8, fontFamily: FONT.mono, fontSize: '0.75rem', fontWeight: 'bold', textDecoration: 'none', letterSpacing: '0.05em' }}>Claim Your Shop ✦</a>
         </div>
-        <a href="/admin/salons" style={{ padding: '0.6rem 1.2rem', background: COLOR.gold, color: '#000', borderRadius: 8, fontFamily: FONT.mono, fontSize: '0.75rem', fontWeight: 'bold', textDecoration: 'none', letterSpacing: '0.05em' }}>Claim Your Shop ✦</a>
-      </div>
+      )}
 
       {/* Recent Bookings */}
       <div style={ST.sectionTitle}>Recent Activity</div>
@@ -472,8 +485,8 @@ export default function MyAccount({ onClose }) {
   // Detect shop claim status from user data (backend can enrich this)
   const shopStatus = data?.user?.shopClaimStatus || null;
 
-  // Filter tabs — hide "My Shop" if admin
-  const visibleTabs = user.role === 'admin' ? TABS.filter(t => t.id !== 'shop') : TABS;
+  // Filter tabs based on role and claim status
+  const visibleTabs = getVisibleTabs(user);
 
   return (
     <motion.div
@@ -502,7 +515,7 @@ export default function MyAccount({ onClose }) {
           {!data && !error && <div style={{ textAlign: 'center', padding: '3rem', fontFamily: FONT.mono, fontSize: '0.65rem', color: COLOR.textGhost }}>Loading your profile…</div>}
 
           {data && (
-            <div style={{ display: 'flex', gap: '2rem', height: '100%' }}>
+            <div className="account-layout" style={{ display: 'flex', gap: '2rem', height: '100%' }}>
               {/* ── Left sidebar: avatar + nav ── */}
               <div style={ST.leftCol}>
                 {/* Avatar */}
@@ -591,18 +604,19 @@ const ST = {
     boxShadow: '-40px 0 120px rgba(0,0,0,0.9)',
     display: 'flex', flexDirection: 'column',
     backdropFilter: 'blur(30px)',
+    overflowX: 'hidden',
   },
   panelHeader: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '1rem 1.5rem', borderBottom: '1px solid rgba(212,175,55,0.1)',
+    padding: '0.85rem 1.2rem', borderBottom: '1px solid rgba(212,175,55,0.1)',
     background: 'rgba(4,3,6,0.9)', flexShrink: 0,
   },
   backBtn: {
     background: 'transparent', border: '1px solid rgba(212,175,55,0.2)', borderRadius: 6,
-    color: COLOR.gold, fontFamily: FONT.mono, fontSize: '0.65rem', letterSpacing: '0.08em',
-    cursor: 'pointer', padding: '0.4rem 0.85rem', transition: 'all 0.15s',
+    color: COLOR.gold, fontFamily: FONT.mono, fontSize: '0.75rem', letterSpacing: '0.08em',
+    cursor: 'pointer', padding: '0.5rem 1rem', transition: 'all 0.15s',
   },
-  body: { flex: 1, overflowY: 'auto', padding: '1.5rem' },
+  body: { flex: 1, overflowY: 'auto', padding: 'clamp(0.75rem, 3vw, 1.5rem)' },
   leftCol: { width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column' },
   rightCol: { flex: 1, minWidth: 0, overflowY: 'auto', paddingLeft: '1.5rem', borderLeft: '1px solid rgba(212,175,55,0.07)' },
 
@@ -613,28 +627,28 @@ const ST = {
 
   navBtn: {
     display: 'flex', alignItems: 'center', gap: '0.6rem',
-    padding: '0.6rem 0.85rem', borderRadius: 8, border: '1px solid transparent',
-    fontFamily: FONT.body, fontSize: '0.85rem', cursor: 'pointer',
+    padding: '0.65rem 0.9rem', borderRadius: 8, border: '1px solid transparent',
+    fontFamily: FONT.body, fontSize: '0.88rem', cursor: 'pointer',
     textAlign: 'left', width: '100%', transition: 'all 0.15s',
   },
 
-  sectionTitle: { fontFamily: FONT.mono, fontSize: '0.6rem', letterSpacing: '0.2em', color: COLOR.textGhost, marginBottom: '0.85rem', textTransform: 'uppercase' },
+  sectionTitle: { fontFamily: FONT.mono, fontSize: '0.65rem', letterSpacing: '0.2em', color: COLOR.textGhost, marginBottom: '0.85rem', textTransform: 'uppercase' },
   card: { padding: '1rem 1.1rem', background: 'rgba(212,175,55,0.025)', border: '1px solid rgba(212,175,55,0.1)', borderRadius: 10, marginBottom: '0.75rem' },
-  empty: { fontFamily: FONT.body, fontSize: '0.85rem', color: COLOR.textGhost, textAlign: 'center', padding: '2.5rem 0', lineHeight: 1.7 },
+  empty: { fontFamily: FONT.body, fontSize: '0.88rem', color: COLOR.textGhost, textAlign: 'center', padding: '2.5rem 0', lineHeight: 1.7 },
 
   statCard: { padding: '1rem', background: 'rgba(212,175,55,0.03)', border: '1px solid rgba(212,175,55,0.1)', borderRadius: 10, textAlign: 'center' },
   statIcon: { fontSize: '1.25rem', marginBottom: '0.4rem' },
   statValue: { fontFamily: FONT.display, fontSize: '1.4rem', fontWeight: 300, color: COLOR.gold },
-  statLabel: { fontFamily: FONT.mono, fontSize: '0.5rem', letterSpacing: '0.12em', color: COLOR.textGhost, marginTop: '0.2rem' },
+  statLabel: { fontFamily: FONT.mono, fontSize: '0.62rem', letterSpacing: '0.12em', color: COLOR.textGhost, marginTop: '0.2rem' },
 
-  histRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0', borderBottom: '1px solid rgba(212,175,55,0.06)' },
+  histRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0', borderBottom: '1px solid rgba(212,175,55,0.06)', gap: '0.5rem', flexWrap: 'wrap' },
   histIcon: { width: 32, height: 32, borderRadius: '50%', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', color: COLOR.gold, flexShrink: 0 },
-  histTitle: { fontFamily: FONT.body, fontSize: '0.85rem', color: COLOR.textPrimary },
-  histMeta: { fontFamily: FONT.mono, fontSize: '0.55rem', color: COLOR.textGhost, marginTop: '0.15rem' },
-  badge: { padding: '0.2rem 0.55rem', borderRadius: 20, fontFamily: FONT.mono, fontSize: '0.5rem', letterSpacing: '0.1em' },
+  histTitle: { fontFamily: FONT.body, fontSize: '0.88rem', color: COLOR.textPrimary },
+  histMeta: { fontFamily: FONT.mono, fontSize: '0.65rem', color: COLOR.textGhost, marginTop: '0.15rem' },
+  badge: { padding: '0.25rem 0.6rem', borderRadius: 20, fontFamily: FONT.mono, fontSize: '0.6rem', letterSpacing: '0.1em', whiteSpace: 'nowrap' },
 
-  input: { width: '100%', padding: '0.65rem 0.85rem', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 7, outline: 'none', fontFamily: FONT.body, fontSize: '0.85rem', color: COLOR.textPrimary, boxSizing: 'border-box' },
-  showHide: { position: 'absolute', right: '0.8rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: COLOR.textMuted, fontFamily: FONT.mono, fontSize: '0.5rem', letterSpacing: '0.1em', cursor: 'pointer' },
-  goldBtn: { width: '100%', padding: '0.65rem', background: 'linear-gradient(135deg,#FFF2A8,#D4AF37)', border: 'none', borderRadius: 7, fontFamily: FONT.mono, fontSize: '0.58rem', letterSpacing: '0.14em', fontWeight: 700, color: '#000', cursor: 'pointer' },
-  dangerBtn: { width: '100%', padding: '0.6rem', background: 'transparent', border: '1px solid rgba(239,83,80,0.35)', borderRadius: 7, fontFamily: FONT.mono, fontSize: '0.58rem', letterSpacing: '0.1em', color: '#EF9A9A', cursor: 'pointer' },
+  input: { width: '100%', padding: '0.65rem 0.85rem', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 7, outline: 'none', fontFamily: FONT.body, fontSize: '0.88rem', color: COLOR.textPrimary, boxSizing: 'border-box' },
+  showHide: { position: 'absolute', right: '0.8rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: COLOR.textMuted, fontFamily: FONT.mono, fontSize: '0.65rem', letterSpacing: '0.1em', cursor: 'pointer' },
+  goldBtn: { width: '100%', padding: '0.7rem', background: 'linear-gradient(135deg,#FFF2A8,#D4AF37)', border: 'none', borderRadius: 7, fontFamily: FONT.mono, fontSize: '0.72rem', letterSpacing: '0.14em', fontWeight: 700, color: '#000', cursor: 'pointer' },
+  dangerBtn: { width: '100%', padding: '0.65rem', background: 'transparent', border: '1px solid rgba(239,83,80,0.35)', borderRadius: 7, fontFamily: FONT.mono, fontSize: '0.72rem', letterSpacing: '0.1em', color: '#EF9A9A', cursor: 'pointer' },
 };

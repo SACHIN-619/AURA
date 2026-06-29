@@ -292,6 +292,67 @@ const SalonCard = forwardRef(function SalonCard({
                   ✦
                 </div>
               )}
+              {/* 3-dots action menu — in photo corner, NOT overlapping card body */}
+              <div style={{ position: 'relative' }}>
+                <motion.button 
+                  style={{ ...S.claimIconBadge, cursor: 'pointer' }}
+                  onClick={(e) => { e.stopPropagation(); setShowActionMenu(!showActionMenu); }} 
+                  title="More actions"
+                  whileHover={{ background: 'rgba(212,175,55,0.2)' }}
+                  whileTap={{ scale: 0.94 }}
+                >
+                  <span style={{ fontSize: '0.9rem', lineHeight: 1, marginTop: '-2px', display: 'block' }}>⋮</span>
+                </motion.button>
+                <AnimatePresence>
+                  {showActionMenu && (
+                    <motion.div 
+                      initial={{opacity:0, y:-5, scale:0.95}} 
+                      animate={{opacity:1, y:0, scale:1}} 
+                      exit={{opacity:0, y:-5, scale:0.95}} 
+                      style={{position:'absolute', top:'120%', right:0, background:'rgba(13,10,19,0.98)', border:'1px solid rgba(212,175,55,0.3)', borderRadius:'8px', padding:'4px', zIndex:500, minWidth:'160px', display:'flex', flexDirection:'column', gap:'2px', boxShadow:'0 8px 24px rgba(0,0,0,0.8)'}}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      {/* Show owner info for claimed shops */}
+                      {salon.listingVerified && (
+                        <div style={{ padding: '8px 12px', borderBottom: '1px solid rgba(212,175,55,0.1)', marginBottom: '2px' }}>
+                          <div style={{ fontFamily: FONT.mono, fontSize: '0.58rem', color: COLOR.gold, letterSpacing: '0.1em', marginBottom: '2px' }}>OWNER CLAIMED</div>
+                          <div style={{ fontFamily: FONT.body, fontSize: '0.72rem', color: COLOR.textMuted }}>
+                            {salon.claimPendingName || 'Verified listing'}
+                          </div>
+                        </div>
+                      )}
+                      {/* Claim option — hidden for admin and already-verified shops */}
+                      {!salon.listingVerified && user?.role !== 'admin' && (
+                        <button 
+                          style={{ background:'transparent', border:'none', color:'rgba(255,248,220,0.9)', padding:'8px 12px', textAlign:'left', fontSize:'0.78rem', fontFamily:FONT.mono, cursor:'pointer', width:'100%', borderRadius:'4px' }} 
+                          onClick={(e) => { 
+                            e.stopPropagation();
+                            setShowActionMenu(false); 
+                            if(!user) { pushToast('Please log in to claim this listing.', 'warning'); setAuthModalOpen?.(true); return; } 
+                            setShowClaimModal(true); 
+                          }}
+                          onMouseOver={(e)=>e.currentTarget.style.background='rgba(212,175,55,0.1)'}
+                          onMouseOut={(e)=>e.currentTarget.style.background='transparent'}
+                        >
+                          🏪 Claim Shop
+                        </button>
+                      )}
+                      <button 
+                        style={{ background:'transparent', border:'none', color:'#ef4444', padding:'8px 12px', textAlign:'left', fontSize:'0.78rem', fontFamily:FONT.mono, cursor:'pointer', width:'100%', borderRadius:'4px' }} 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowActionMenu(false);
+                          setShowReportModal(true);
+                        }}
+                        onMouseOver={(e)=>e.currentTarget.style.background='rgba(239,68,68,0.1)'}
+                        onMouseOut={(e)=>e.currentTarget.style.background='transparent'}
+                      >
+                        🚩 Report Shop
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           )}
         </div>
@@ -440,55 +501,6 @@ const SalonCard = forwardRef(function SalonCard({
                 </motion.button>
               </>
             )}
-          </div>
-          <div style={{position:'absolute', top: '10px', right: '10px', zIndex: 200}}>
-            <motion.button 
-              style={S.iconBtn} 
-              onClick={() => setShowActionMenu(!showActionMenu)} 
-              title="More actions"
-              whileHover={{ borderColor: 'rgba(212,175,55,0.4)', backgroundColor: 'rgba(212,175,55,0.04)' }} 
-              whileTap={{ scale: 0.94 }}
-            >
-              <span style={{fontSize: '1rem', lineHeight: '10px', marginTop: '-4px'}}>⋮</span>
-            </motion.button>
-            <AnimatePresence>
-              {showActionMenu && (
-                <motion.div 
-                  initial={{opacity:0, y:-5, scale:0.95}} 
-                  animate={{opacity:1, y:0, scale:1}} 
-                  exit={{opacity:0, y:-5, scale:0.95}} 
-                  style={{position:'absolute', top:'120%', right:0, background:'rgba(13,10,19,0.98)', border:'1px solid rgba(212,175,55,0.3)', borderRadius:'8px', padding:'4px', zIndex:100, minWidth:'130px', display:'flex', flexDirection:'column', gap:'2px', boxShadow:'0 8px 24px rgba(0,0,0,0.8)'}}
-                >
-                  {!salon.listingVerified && (
-                    <button 
-                      style={{ background:'transparent', border:'none', color:'rgba(255,248,220,0.9)', padding:'8px 12px', textAlign:'left', fontSize:'0.75rem', fontFamily:FONT.mono, cursor:'pointer', width:'100%', borderRadius:'4px' }} 
-                      onClick={(e) => { 
-                        e.stopPropagation();
-                        setShowActionMenu(false); 
-                        if(!user) { pushToast('Please log in to claim this listing.', 'warning'); setAuthModalOpen?.(true); return; } 
-                        setShowClaimModal(true); 
-                      }}
-                      onMouseOver={(e)=>e.currentTarget.style.background='rgba(212,175,55,0.1)'}
-                      onMouseOut={(e)=>e.currentTarget.style.background='transparent'}
-                    >
-                      Claim Shop
-                    </button>
-                  )}
-                  <button 
-                    style={{ background:'transparent', border:'none', color:'#ef4444', padding:'8px 12px', textAlign:'left', fontSize:'0.75rem', fontFamily:FONT.mono, cursor:'pointer', width:'100%', borderRadius:'4px' }} 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowActionMenu(false);
-                      setShowReportModal(true);
-                    }}
-                    onMouseOver={(e)=>e.currentTarget.style.background='rgba(239,68,68,0.1)'}
-                    onMouseOut={(e)=>e.currentTarget.style.background='transparent'}
-                  >
-                    Report Shop
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         </div>
       </motion.article>
