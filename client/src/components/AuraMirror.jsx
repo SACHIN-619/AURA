@@ -40,7 +40,19 @@ export default function AuraMirror({onClose,onBook}) {
     setGender(null); setStage('preview'); 
   };
 
+  const onFileClick = (e) => {
+    fileRef.current?.click();
+  };
+
+  const onWebcamClick = () => {
+    startWebcam();
+  };
+
   const onFile=(e)=>{
+    if (!user) {
+      setStage('login-prompt');
+      return;
+    }
     const file=e.target.files?.[0];
     if(!file) return;
     if(!file.type.startsWith('image/')){setError('Please upload a photo.');return;}
@@ -71,6 +83,11 @@ export default function AuraMirror({onClose,onBook}) {
   };
 
   const takeWebcamPhoto = () => {
+    if (!user) {
+      stopWebcam();
+      setStage('login-prompt');
+      return;
+    }
     if (!videoRef.current) return;
     const canvas = document.createElement('canvas');
     canvas.width = videoRef.current.videoWidth;
@@ -87,6 +104,13 @@ export default function AuraMirror({onClose,onBook}) {
   useEffect(() => {
     return () => stopWebcam();
   }, [stream]);
+
+  // Auto-advance if user logs in while viewing the prompt
+  useEffect(() => {
+    if (user && stage === 'login-prompt') {
+      setStage('upload');
+    }
+  }, [user, stage]);
 
   // Drag handlers for repositioning the image inside the fixed crop window
   const onDragStart=(e)=>{
@@ -207,14 +231,37 @@ export default function AuraMirror({onClose,onBook}) {
             </motion.div>
           )}
 
+          {stage==='login-prompt' && (
+            <motion.div key="login-prompt" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} style={{textAlign:'center'}}>
+              <div style={{fontSize:'2.5rem',marginBottom:'0.8rem',color:COLOR.gold}}>🔒</div>
+              <h3 style={{fontFamily:FONT.display,fontSize:'1.35rem',color:COLOR.textPrimary,margin:'0 0 0.8rem 0'}}>Sign in Required</h3>
+              <p style={{fontFamily:FONT.body,fontSize:'0.85rem',color:COLOR.textMuted,lineHeight:1.5,marginBottom:'1.2rem'}}>
+                AURA Mirror is a premium feature. Please log in or sign up to use it.
+              </p>
+              <div style={{textAlign:'left',background:'rgba(212,175,55,0.05)',border:'1px solid rgba(212,175,55,0.15)',borderRadius:10,padding:'0.9rem',marginBottom:'1.4rem'}}>
+                <div style={{fontFamily:FONT.mono,fontSize:'0.65rem',color:COLOR.gold,marginBottom:'0.4rem',letterSpacing:'0.05em'}}>✦ WHAT SIGNING IN UNLOCKS:</div>
+                <ul style={{fontFamily:FONT.body,fontSize:'0.76rem',color:COLOR.textPrimary,paddingLeft:'1.1rem',margin:0,lineHeight:1.6}}>
+                  <li style={{marginBottom:'0.25rem'}}><strong>AI Face Shape Analysis:</strong> Scan your selfie to detect face features.</li>
+                  <li style={{marginBottom:'0.25rem'}}><strong>Tailored Style Suggestions:</strong> Find the absolute best haircuts for you.</li>
+                  <li style={{marginBottom:'0.25rem'}}><strong>Booking Integration:</strong> Easily book salons nearby that match your style.</li>
+                  <li><strong>Style Scan History:</strong> Save and track your grooming profiles over time.</li>
+                </ul>
+              </div>
+              <div style={{display:'flex',gap:'0.75rem'}}>
+                <button style={S.secBtn} onClick={() => setStage('upload')}>Back</button>
+                <button style={S.primBtn} onClick={() => { setAuthModalOpen?.(true); }}>Log In / Sign Up</button>
+              </div>
+            </motion.div>
+          )}
+
           {stage==='upload' && (
             <motion.div key="up" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
               <div style={{display:'flex',gap:'0.5rem',marginBottom:'1rem'}}>
-                <div style={{...S.drop, flex:1, padding:'1.5rem 0.5rem'}} onClick={()=>fileRef.current?.click()}>
+                <div style={{...S.drop, flex:1, padding:'1.5rem 0.5rem'}} onClick={onFileClick}>
                   <div style={{fontSize:'2rem',marginBottom:'0.5rem',opacity:0.4}}>📸</div>
                   <div style={{fontFamily:FONT.display,fontSize:'1rem',color:COLOR.textPrimary}}>Upload</div>
                 </div>
-                <div style={{...S.drop, flex:1, padding:'1.5rem 0.5rem'}} onClick={startWebcam}>
+                <div style={{...S.drop, flex:1, padding:'1.5rem 0.5rem'}} onClick={onWebcamClick}>
                   <div style={{fontSize:'2rem',marginBottom:'0.5rem',opacity:0.4}}>🤳</div>
                   <div style={{fontFamily:FONT.display,fontSize:'1rem',color:COLOR.textPrimary}}>Take Photo</div>
                 </div>
@@ -341,10 +388,10 @@ export default function AuraMirror({onClose,onBook}) {
 }
 
 const S={
-  ov:{position:'fixed',inset:0,zIndex:900,display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'},
-  back:{position:'absolute',inset:0,background:'rgba(3,2,4,0.88)',backdropFilter:'blur(12px)'},
-  box:{position:'relative',width:'100%',maxWidth:520,background:'rgba(13,10,19,0.97)',border:'1px solid rgba(212,175,55,0.25)',borderRadius:16,padding:'clamp(1.2rem,5vw,2rem)',boxShadow:'0 30px 80px rgba(0,0,0,0.8)',maxHeight:'90vh',overflowY:'auto'},
-  close:{position:'absolute',top:'0.9rem',right:'0.9rem',width:26,height:26,borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,248,220,0.3)',cursor:'pointer',background:'transparent',border:'none',fontSize:'0.75rem'},
+  ov:{position:'fixed',inset:0,zIndex:900,display:'flex',justifyContent:'center',alignItems:'flex-start',padding:'2rem 1rem',overflowY:'auto',boxSizing:'border-box'},
+  back:{position:'fixed',inset:0,background:'rgba(3,2,4,0.88)',backdropFilter:'blur(12px)',zIndex:1},
+  box:{position:'relative',zIndex:2,width:'100%',maxWidth:520,background:'rgba(13,10,19,0.97)',border:'1px solid rgba(212,175,55,0.25)',borderRadius:16,padding:'clamp(1.2rem,5vw,2rem)',boxShadow:'0 30px 80px rgba(0,0,0,0.8)',margin:'auto 0'},
+  close:{position:'absolute',top:'0.9rem',right:'0.9rem',width:26,height:26,borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,248,220,0.3)',cursor:'pointer',background:'transparent',border:'none',fontSize:'0.75rem',zIndex:3},
   drop:{border:'2px dashed rgba(212,175,55,0.2)',borderRadius:12,padding:'clamp(1.6rem,7vw,2.5rem) 1rem',textAlign:'center',cursor:'pointer',marginBottom:'1rem'},
   secBtn:{flex:1,padding:'0.72rem',background:'transparent',border:'1px solid rgba(212,175,55,0.2)',borderRadius:7,fontFamily:FONT.mono,fontSize:'0.48rem',letterSpacing:'0.18em',color:COLOR.textMuted,cursor:'pointer'},
   primBtn:{flex:2,padding:'0.72rem',background:'linear-gradient(135deg,#FFF2A8,#D4AF37)',border:'none',borderRadius:7,fontFamily:FONT.mono,fontSize:'0.5rem',letterSpacing:'0.18em',fontWeight:700,color:'#000',cursor:'pointer'},

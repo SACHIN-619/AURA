@@ -135,10 +135,10 @@ function Field({ label, children }) {
 }
 
 const S = {
-  ov:  { position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', overflowY: 'auto' },
-  back:{ position: 'fixed', inset: 0, background: 'rgba(3,2,4,0.88)', backdropFilter: 'blur(12px)' },
-  box: { position: 'relative', width: '100%', maxWidth: 520, background: 'rgba(13,10,19,0.97)', border: '1px solid rgba(212,175,55,0.22)', borderRadius: 20, padding: 'clamp(1.5rem,5vw,3rem)', boxShadow: '0 40px 100px rgba(0,0,0,0.9)' },
-  close:{ position: 'absolute', top: '1rem', right: '1rem', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,248,220,0.4)', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', borderRadius: '50%', border: 'none', fontSize: '0.85rem' },
+  ov:  { position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '2rem 1rem', overflowY: 'auto', boxSizing: 'border-box' },
+  back:{ position: 'fixed', inset: 0, background: 'rgba(3,2,4,0.88)', backdropFilter: 'blur(12px)', zIndex: 1 },
+  box: { position: 'relative', zIndex: 2, width: '100%', maxWidth: 520, background: 'rgba(13,10,19,0.97)', border: '1px solid rgba(212,175,55,0.22)', borderRadius: 20, padding: 'clamp(1.2rem,5vw,2.5rem)', boxShadow: '0 40px 100px rgba(0,0,0,0.9)', margin: 'auto 0' },
+  close:{ position: 'absolute', top: '1rem', right: '1rem', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,248,220,0.4)', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', borderRadius: '50%', border: 'none', fontSize: '0.85rem', zIndex: 3 },
   inp: { width: '100%', padding: '0.85rem 1.1rem', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, outline: 'none', fontFamily: FONT.body, fontSize: '0.9rem', color: COLOR.textPrimary, boxSizing: 'border-box', transition: 'border-color 0.2s' },
   err: { 
     color: '#FF6B6B', 

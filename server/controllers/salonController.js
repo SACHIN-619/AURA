@@ -13,7 +13,7 @@ export const getSalons = async (req, res) => {
     if (gender && gender !== 'any') filter.servesGender = gender;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [salons, total] = await Promise.all([
-      Salon.find(filter).select('-__v').sort(sort).skip(skip).limit(parseInt(limit)).lean(),
+      Salon.find(filter).select('-__v').populate('owner', 'name email').sort(sort).skip(skip).limit(parseInt(limit)).lean(),
       Salon.countDocuments(filter),
     ]);
     return res.json({
@@ -28,7 +28,7 @@ export const getSalons = async (req, res) => {
 
 export const getSalonById = async (req, res) => {
   try {
-    const s = await Salon.findOne({ _id: req.params.id, disabled: { $ne: true } }).lean();
+    const s = await Salon.findOne({ _id: req.params.id, disabled: { $ne: true } }).populate('owner', 'name email').lean();
     if (!s) return res.status(404).json({ success: false, error: 'Salon not found' });
     return res.json({ success: true, data: s });
   } catch (e) {
@@ -272,10 +272,29 @@ export const proposeSalon = async (req, res) => {
     const userId = req.user.sub;
     const { name, hub, address, contact, description, location, images, serviceCategories, servesGender } = req.body;
 
-    if (!name || !hub || !location || !location.lat || !location.lon) {
-      return res.status(400).json({ success: false, error: 'Name, hub, and location are required.' });
+    // ── Strict validation — reject partial submissions ────────────────────────
+    const missingFields = [];
+    if (!name?.trim())                          missingFields.push('Salon name');
+    if (!hub?.trim())                            missingFields.push('Area/Hub');
+    if (!location || !location.lat || !location.lon) missingFields.push('Location (map pin)');
+    if (!contact?.phone?.trim())                missingFields.push('Contact phone number');
+    if (!serviceCategories || serviceCategories.length === 0) missingFields.push('Service category');
+    if (!images?.gallery || images.gallery.length < 3)        missingFields.push('At least 3 photos');
+
+    if (missingFields.length > 0) {
+      const rejectionReason = `Listing rejected: Missing required fields — ${missingFields.join(', ')}.`;
+      // Log rejection to user activity so it shows in dashboard
+      await User.findByIdAndUpdate(userId, {
+        $push: { activityLog: { action: 'listing_rejected', metadata: { reason: rejectionReason, attemptedName: name || '(unnamed)' } } }
+      });
+      return res.status(400).json({
+        success: false,
+        error: rejectionReason,
+        rejectionReason,
+        missingFields,
+      });
     }
-    
+
     const user = await User.findById(userId);
     if (user.shopClaimStatus === 'pending') {
       return res.status(400).json({ success: false, error: 'You already have a pending claim or proposed shop. Cancel it first.' });
@@ -283,7 +302,7 @@ export const proposeSalon = async (req, res) => {
 
     const { uploadSalonImage, isUploadConfigured } = await import('../services/uploadService.js');
     const uploadedGalleryUrls = [];
-    
+
     if (isUploadConfigured() && images?.gallery?.length) {
       for (let i = 0; i < images.gallery.length; i++) {
         const img = images.gallery[i];
@@ -294,12 +313,15 @@ export const proposeSalon = async (req, res) => {
           uploadedGalleryUrls.push(img);
         }
       }
+    } else {
+      // Images provided but upload not configured — store as-is (base64 or URL)
+      (images?.gallery || []).forEach(img => uploadedGalleryUrls.push(img));
     }
 
     const newSalon = new Salon({
       osmId: `user_${userId}_${Date.now()}`,
-      name,
-      hub,
+      name: name.trim(),
+      hub: hub.trim(),
       location: {
         type: 'Point',
         coordinates: [location.lon, location.lat]
@@ -318,12 +340,12 @@ export const proposeSalon = async (req, res) => {
       listingVerified: false,
       claimPending: userId,
       claimPendingAt: new Date(),
-      claimPendingName: name,
+      claimPendingName: name.trim(),
       claimStatus: 'pending'
     });
 
     await newSalon.save();
-    
+
     // Update user's claim status
     await User.findByIdAndUpdate(userId, {
       shopClaimStatus:  'pending',

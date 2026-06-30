@@ -82,7 +82,10 @@ const SalonSchema = new mongoose.Schema({
     reason: String,
     details: String,
     createdAt: { type: Date, default: Date.now },
-    status: { type: String, enum: ['pending', 'resolved', 'dismissed'], default: 'pending' }
+    status: { type: String, enum: ['pending', 'resolved', 'dismissed'], default: 'pending' },
+    replyMessage: { type: String, default: null },
+    repliedAt: { type: Date, default: null },
+    repliedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
   }]
 }, { timestamps: true, versionKey: false });
 

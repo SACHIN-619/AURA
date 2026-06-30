@@ -35,12 +35,19 @@ function getVisibleTabs(user) {
 }
 
 // ── Notification Banner (static, can be wired to backend later) ────────────
-function NotificationBar({ role, shopStatus }) {
+function NotificationBar({ role, shopStatus, activityLog }) {
   const notes = [];
   if (shopStatus === 'pending')  notes.push({ type: 'info', msg: '⏳ Your shop claim is under admin review. We\'ll notify you within 24–48 hours.' });
   if (shopStatus === 'approved') notes.push({ type: 'success', msg: '✦ Your shop claim was approved! Go to "My Shop" to manage your listing.' });
-  if (shopStatus === 'rejected') notes.push({ type: 'error', msg: '✕ Your shop claim was rejected. Contact support for details.' });
+  if (shopStatus === 'rejected') notes.push({ type: 'error', msg: '✕ Your shop claim was rejected. Contact support or re-submit in "My Shop".' });
   if (role === 'owner')          notes.push({ type: 'success', msg: '✦ You have an active shop listing. Use "My Shop" to manage it.' });
+
+  // Show listing rejection notices from activity log
+  const rejections = (activityLog || []).filter(l => l.action === 'listing_rejected').slice(0, 2);
+  rejections.forEach(r => {
+    notes.push({ type: 'error', msg: `⚠ Listing Rejected${r.detail ? ` — ${r.detail}` : ''}. Revisit "My Shop" → "List Your Shop" to fix and resubmit.` });
+  });
+
   if (!notes.length) return null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
@@ -56,6 +63,7 @@ function NotificationBar({ role, shopStatus }) {
     </div>
   );
 }
+
 
 // ── Overview Tab ───────────────────────────────────────────────────────────
 function OverviewTab({ data, progress }) {
@@ -581,7 +589,7 @@ export default function MyAccount({ onClose }) {
 
               {/* ── Right content ── */}
               <div style={ST.rightCol}>
-                <NotificationBar role={data.user.role} shopStatus={shopStatus} />
+                <NotificationBar role={data.user.role} shopStatus={shopStatus} activityLog={data.user.activityLog} />
                 <AnimatePresence mode="wait">
                   <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
                     {tab === 'overview' && <OverviewTab data={data} progress={progress} />}

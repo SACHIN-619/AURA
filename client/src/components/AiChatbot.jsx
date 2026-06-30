@@ -1,14 +1,24 @@
 // AiChatbot — compact bottom-right chat widget using AURA design system.
-// Uses inline styles (no Tailwind). Sends to the correct backend endpoint
-// with the correct request body shape.
+// Uses inline styles (no Tailwind). Mobile-responsive: 80dvh on small screens.
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API } from '../context/AuraContext';
 import { COLOR, FONT } from '../utils/tokens';
 import SalonCard from './SalonCard';
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return isMobile;
+}
+
 export default function AiChatbot({ currentHub }) {
   const [isOpen, setIsOpen] = useState(false);
+  const isMobile = useIsMobile();
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -30,9 +40,8 @@ export default function AiChatbot({ currentHub }) {
       setIsOpen(true);
       if (e.detail?.query) {
         setInput(e.detail.query);
-        // Focus the input if possible
         setTimeout(() => {
-          const inputEl = document.querySelector('input[placeholder="Message AURA..."]');
+          const inputEl = document.querySelector('input[placeholder="Ask about haircuts, salons..."]');
           if (inputEl) inputEl.focus();
         }, 100);
       }
@@ -89,6 +98,23 @@ export default function AiChatbot({ currentHub }) {
     }
   };
 
+  // ── Dynamic card sizing ───────────────────────────────────────────────────
+  // Mobile: full-width sheet rising from bottom, 80% of viewport height.
+  // Desktop: fixed 440×650 card anchored to bottom-right.
+  const cardStyle = isMobile
+    ? {
+        ...S.card,
+        width: '100%',
+        maxWidth: '100%',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        borderRadius: '18px 18px 0 0',
+        height: '80dvh',
+        maxHeight: '80dvh',
+      }
+    : S.card;
+
   return (
     <>
       {/* Floating trigger button */}
@@ -112,13 +138,13 @@ export default function AiChatbot({ currentHub }) {
         {isOpen && (
           <motion.div
             className="chatbot-card"
-            style={S.card}
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            style={cardStyle}
+            initial={{ opacity: 0, y: isMobile ? 100 : 50, scale: isMobile ? 1 : 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            exit={{ opacity: 0, y: isMobile ? 100 : 20, scale: isMobile ? 1 : 0.95 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 220 }}
           >
-            {/* Header */}
+            {/* ── Header — always visible, close button always accessible ── */}
             <div style={S.header}>
               <div style={S.headerLeft}>
                 <div style={S.headerIcon}>✦</div>
@@ -127,10 +153,17 @@ export default function AiChatbot({ currentHub }) {
                   <div style={S.headerSub}>📍 Serving {currentHub || 'Hyderabad'}</div>
                 </div>
               </div>
-              <button onClick={() => setIsOpen(false)} style={S.closeBtn}>✕</button>
+              <button
+                onClick={() => setIsOpen(false)}
+                style={S.closeBtn}
+                aria-label="Close chat"
+                title="Close"
+              >
+                ✕
+              </button>
             </div>
 
-            {/* Messages */}
+            {/* ── Messages ─────────────────────────────────────────────── */}
             <div style={S.messagesWrap}>
               {messages.map((msg, idx) => (
                 <div key={idx} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: '0.6rem' }}>
@@ -138,8 +171,7 @@ export default function AiChatbot({ currentHub }) {
                     <p style={S.msgText}>{msg.content}</p>
                     {msg.salons && msg.salons.length > 0 && (() => {
                       // Filter out salons whose "name" is actually a phone number,
-                      // a raw OSM id, or is missing — these are data gaps from OSM,
-                      // not real salon names the user should see.
+                      // a raw OSM id, or is missing — these are data gaps from OSM.
                       const isPhoneOrJunk = (n) => !n || /^[\d\s\+\-\(\)]{7,}$/.test(n.trim()) || /^node\//i.test(n);
                       const goodSalons = msg.salons.filter(s => !isPhoneOrJunk(s.name));
                       if (!goodSalons.length) return null;
@@ -175,7 +207,7 @@ export default function AiChatbot({ currentHub }) {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
+            {/* ── Input ────────────────────────────────────────────────── */}
             <form onSubmit={handleSend} style={S.inputBar}>
               <input
                 type="text"
@@ -216,7 +248,7 @@ const S = {
     animation: 'livepulse 2s infinite',
   },
 
-  // Card
+  // Card — base (desktop). Mobile overrides applied via cardStyle above.
   card: {
     position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 1300,
     width: 440, height: 650, maxWidth: 'calc(100vw - 2rem)', maxHeight: 'calc(100dvh - 3rem)',
@@ -226,26 +258,26 @@ const S = {
     backdropFilter: 'blur(24px)',
   },
 
-  // Header
+  // Header — always sticky, never clipped
   header: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '0.75rem 1rem', borderBottom: '1px solid rgba(212,175,55,0.1)',
-    background: 'rgba(6,5,8,0.8)', flexShrink: 0,
+    padding: '0.85rem 1rem', borderBottom: '1px solid rgba(212,175,55,0.12)',
+    background: 'rgba(6,5,8,0.97)', flexShrink: 0, minHeight: 58,
   },
-  headerLeft: { display: 'flex', alignItems: 'center', gap: '0.5rem' },
+  headerLeft: { display: 'flex', alignItems: 'center', gap: '0.6rem' },
   headerIcon: {
-    width: 30, height: 30, borderRadius: '50%',
-    background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)',
+    width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+    background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.28)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: COLOR.gold, fontSize: '0.8rem', fontFamily: FONT.mono,
+    color: COLOR.gold, fontSize: '0.9rem', fontFamily: FONT.mono,
   },
-  headerTitle: { fontFamily: FONT.body, fontSize: '0.9rem', fontWeight: 600, color: COLOR.textPrimary },
-  headerSub: { fontFamily: FONT.mono, fontSize: '0.5rem', color: COLOR.textGhost, letterSpacing: '0.06em' },
+  headerTitle: { fontFamily: FONT.body, fontSize: '0.95rem', fontWeight: 700, color: COLOR.textPrimary },
+  headerSub: { fontFamily: FONT.mono, fontSize: '0.52rem', color: COLOR.textGhost, letterSpacing: '0.06em' },
   closeBtn: {
-    width: 28, height: 28, borderRadius: 6,
+    width: 38, height: 38, borderRadius: 8, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
-    color: COLOR.textGhost, cursor: 'pointer', fontSize: '0.7rem',
+    background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
+    color: COLOR.textPrimary, cursor: 'pointer', fontSize: '0.85rem',
     transition: 'all 0.15s',
   },
 
@@ -267,11 +299,6 @@ const S = {
   msgText: { fontFamily: FONT.body, fontSize: '0.85rem', lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap' },
   salonList: { marginTop: '0.6rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(212,175,55,0.15)' },
   salonListLabel: { fontFamily: FONT.mono, fontSize: '0.42rem', letterSpacing: '0.1em', color: COLOR.goldDim, marginBottom: '0.4rem', textTransform: 'uppercase' },
-  salonChip: {
-    display: 'block', padding: '0.4rem 0.6rem', marginBottom: '0.3rem',
-    background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))', border: '1px solid rgba(212,175,55,0.3)',
-    borderRadius: 6, fontFamily: FONT.body, fontSize: '0.7rem', color: COLOR.gold, textDecoration: 'none', textAlign: 'center', fontWeight: 'bold'
-  },
   providerTag: { fontFamily: FONT.mono, fontSize: '0.38rem', color: COLOR.textGhost, marginTop: '0.3rem', textAlign: 'right' },
 
   // Loading dots
@@ -284,7 +311,7 @@ const S = {
   // Input
   inputBar: {
     display: 'flex', gap: '0.4rem', padding: '0.6rem 0.75rem',
-    borderTop: '1px solid rgba(212,175,55,0.1)', background: 'rgba(6,5,8,0.8)',
+    borderTop: '1px solid rgba(212,175,55,0.1)', background: 'rgba(6,5,8,0.95)',
     flexShrink: 0,
   },
   input: {

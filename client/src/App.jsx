@@ -16,7 +16,7 @@ import { IntroOverlay, HubLoader } from './components/CinematicOverlays';
 import DynamicTranslate from './components/DynamicTranslate';
 import NotificationCenter from './components/NotificationCenter';
 import { COLOR, FONT } from './utils/tokens';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import OwnerDashboardLayout from './pages/owner/OwnerDashboardLayout';
 import CoreBoutiqueMetrics from './pages/owner/CoreBoutiqueMetrics';
 import PricingCategoryManager from './pages/owner/PricingCategoryManager';
@@ -196,12 +196,13 @@ function AppShell({ showApp }) {
   const [showInactivity, setShowInactivity] = useState(false);
   const { user, setUser, authModalOpen, setAuthModalOpen } = useAura();
 
-  // Admin redirect
-  useEffect(() => {
-    if (user?.role === 'admin' && !window.location.pathname.startsWith('/admin')) {
-      window.location.href = '/admin';
-    }
-  }, [user]);
+  // ── Admin redirect — render-time, no flash ────────────────────────────────
+  // If the user is logged in as admin and NOT on /admin, redirect immediately.
+  // This is checked at render time so there is never a flash of the user UI.
+  if (user?.role === 'admin' && !window.location.pathname.startsWith('/admin')) {
+    window.location.replace('/admin');
+    return null;
+  }
 
   // Inactivity Timer
   useEffect(() => {
@@ -243,11 +244,28 @@ function AppShell({ showApp }) {
         )}
       </AnimatePresence>
 
-      {/* AuraMirror & AuthModal — floating middle bottom, accessible to guests */}
+
+      {/* AuraMirror — floating middle bottom, accessible to guests */}
       <AnimatePresence>
         {showMirror && <AuraMirror key="mir" onClose={() => setShowMirror(false)} />}
-        {authModalOpen && <AuthModal key="auth" onClose={() => setAuthModalOpen?.(false)} onAuthed={(u) => setUser?.(u)} />}
       </AnimatePresence>
+
+      {/* AuthModal at root level so it is centered on screen without parent transforms */}
+      <AnimatePresence>
+        {authModalOpen && (
+          <AuthModal 
+            key="auth" 
+            onClose={() => setAuthModalOpen?.(false)} 
+            onAuthed={(u) => {
+              if (setUser) setUser(u);
+              if (u?.role === 'admin') {
+                window.location.replace('/admin');
+              }
+            }} 
+          />
+        )}
+      </AnimatePresence>
+
 
       <AnimatePresence>
         {showApp && (onboarded || onbDone) && (
@@ -319,28 +337,9 @@ export default function App() {
     const t1 = setTimeout(() => setShowIntro(false), 1500);
     const t2 = setTimeout(() => setShowApp(true), 1600);
 
-    // Global Exit Protection (Tab close / Back button)
-    const handleBeforeUnload = (e) => {
-      e.preventDefault();
-      e.returnValue = ''; 
-    };
-
-    const handlePopState = (e) => {
-      const confirmExit = window.confirm("Are you sure you want to exit AURA?");
-      if (!confirmExit) {
-        window.history.pushState(null, document.title, window.location.href);
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.history.pushState(null, document.title, window.location.href);
-    window.addEventListener('popstate', handlePopState);
-
     return () => { 
       clearTimeout(t1); 
       clearTimeout(t2); 
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('popstate', handlePopState);
     };
   }, []);
 

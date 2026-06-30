@@ -18,7 +18,7 @@ const DEFAULT_CATEGORIES = [
   'Hair Extensions', 'Scalp Treatment', 'Aromatherapy',
 ];
 
-const ALL_TABS = ['overview','analytics','salons','claims','moderation','listings','bookings','data gaps','activity','expansion','reports','users'];
+const ALL_TABS = ['overview','analytics','salons','claims','moderation','listings','bookings','data gaps','activity','expansion','reports','scanner','users'];
 
 export default function AdminDashboard() {
   const [token,      setToken]      = useState(localStorage.getItem('aura_token') || '');
@@ -42,6 +42,15 @@ export default function AdminDashboard() {
   const [showPass,   setShowPass]   = useState(false);
   const [toast,      setToast]      = useState('');
 
+  // AI Quality Scanner and report replying state
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [scannerResults, setScannerResults] = useState([]);
+  const [scanning, setScanning] = useState(false);
+  const [revoking, setRevoking] = useState(false);
+  const [reportReplyMsg, setReportReplyMsg] = useState('');
+  const [replyingToReport, setReplyingToReport] = useState(null);
+  const [replySaving, setReplySaving] = useState(false);
+
   // Listings tab state
   const [listingView,   setListingView]   = useState('unverified'); // 'unverified' | 'all'
   const [salonSearch,   setSalonSearch]   = useState('');
@@ -50,6 +59,23 @@ export default function AdminDashboard() {
   const [editSalon,     setEditSalon]     = useState(null); // salon being edited in modal
   const [editForm,      setEditForm]      = useState({});
   const [editSaving,    setEditSaving]    = useState(false);
+
+  // Claims tab state
+  const [claimSearch,   setClaimSearch]   = useState('');
+  const [claimStatus,   setClaimStatus]   = useState('pending');
+  const [orphanedCount, setOrphanedCount] = useState(0);
+  const [bulkRejecting, setBulkRejecting] = useState(false);
+
+  // Users tab state
+  const [userSearch,    setUserSearch]    = useState('');
+  const [userRoleFilter,setUserRoleFilter]= useState('');
+
+  // Bookings tab state
+  const [bookingSearch,  setBookingSearch]  = useState('');
+  const [bookingStatus,  setBookingStatus]  = useState('');
+
+  // Activity tab state
+  const [activityFilter, setActivityFilter] = useState('');
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
   const authH = (jwt) => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` });
@@ -102,6 +128,7 @@ export default function AdminDashboard() {
       setReports(reps.salons || []);
       setUsers(usr.users || []);
       setClaims(clm.claims || []);
+      setOrphanedCount(clm.orphanedCount || 0);
       setNullSearches(ns.nullSearches || []);
       setAllSalons(allS.salons || []);
     } catch (e) {
@@ -114,10 +141,20 @@ export default function AdminDashboard() {
 
   useEffect(() => { if (token) fetchAll(token); }, []); // eslint-disable-line
 
+  useEffect(() => {
+    if (tab === 'scanner' && token) {
+      runScanner();
+    }
+  }, [tab, token]);
+
+  useEffect(() => {
+    if (token) fetchAllSalons();
+  }, [typeFilter, disabledFilter, hubFilter, token]);
+
   // ─── Fetch all salons with current filters (for the Salons tab) ────────────
   const fetchAllSalons = async () => {
     try {
-      const params = new URLSearchParams({ search: salonSearch, hub: hubFilter, limit: 50 });
+      const params = new URLSearchParams({ search: salonSearch, hub: hubFilter, limit: 50, type: typeFilter });
       if (disabledFilter) params.set('disabled', disabledFilter);
       const r = await fetch(`${API}/api/admin/salons?${params}`, { headers: authH(token) });
       const d = await r.json();
@@ -254,13 +291,45 @@ export default function AdminDashboard() {
     else showToast(data.error || 'Failed to update role');
   };
 
-  const respondToClaim = async (claimId, status, message) => {
+  const respondToClaim = async (claimId, action, message) => {
     const res = await fetch(`${API}/api/admin/claims/${claimId}/respond`, {
-      method: 'POST', headers: authH(token), body: JSON.stringify({ status, message }),
+      method: 'POST', headers: authH(token), body: JSON.stringify({ action, message }),
     });
     const data = await res.json();
-    if (data.success) { fetchAll(token); showToast(`Claim ${status}.`); }
+    if (data.success) { fetchAll(token); showToast(`Claim ${action}d.`); }
     else showToast(data.error || 'Failed to respond to claim');
+  };
+
+  const bulkRejectOrphaned = async () => {
+    if (!window.confirm(`Bulk-reject all ${orphanedCount} orphaned claims with no valid data? This cannot be undone.`)) return;
+    setBulkRejecting(true);
+    try {
+      const r = await fetch(`${API}/api/admin/claims/bulk-reject-orphaned`, {
+        method: 'POST', headers: authH(token),
+      });
+      const d = await r.json();
+      showToast(d.message || 'Done');
+      fetchAll(token);
+    } catch { showToast('Bulk reject failed.'); }
+    finally { setBulkRejecting(false); }
+  };
+
+  const fetchClaims = async () => {
+    try {
+      const params = new URLSearchParams({ status: claimStatus, search: claimSearch });
+      const r = await fetch(`${API}/api/admin/claims?${params}`, { headers: authH(token) });
+      const d = await r.json();
+      if (d.success) { setClaims(d.claims || []); setOrphanedCount(d.orphanedCount || 0); }
+    } catch { /* non-critical */ }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const params = new URLSearchParams({ search: userSearch, role: userRoleFilter });
+      const r = await fetch(`${API}/api/admin/users?${params}`, { headers: authH(token) });
+      const d = await r.json();
+      if (d.success) setUsers(d.users || []);
+    } catch { /* non-critical */ }
   };
 
   const dismissReport = async (salonId, reportId, action) => {
@@ -270,6 +339,66 @@ export default function AdminDashboard() {
     const d = await r.json();
     showToast(d.message || 'Done');
     fetchAll(token);
+  };
+
+  const runScanner = async () => {
+    setScanning(true);
+    try {
+      const r = await fetch(`${API}/api/admin/scanner/scan`, { headers: authH(token) });
+      const d = await r.json();
+      if (d.success) {
+        setScannerResults(d.salons || []);
+        showToast(`✓ AI scan completed: flagged ${d.count} issues.`);
+      } else {
+        showToast(`✗ Scan failed: ${d.error}`);
+      }
+    } catch (e) { showToast(`✗ Scan failed: ${e.message}`); }
+    finally { setScanning(false); }
+  };
+
+  const revokeClaims = async (ids) => {
+    if (!ids || ids.length === 0) return;
+    if (!window.confirm(`Revoke listing verification for ${ids.length} selected shops? They will return to unclaimed status.`)) return;
+    setRevoking(true);
+    try {
+      const r = await fetch(`${API}/api/admin/scanner/revoke`, {
+        method: 'POST',
+        headers: authH(token),
+        body: JSON.stringify({ ids }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        showToast(`✓ ${d.message}`);
+        runScanner();
+        fetchAll(token);
+        fetchAllSalons();
+      } else {
+        showToast(`✗ Action failed: ${d.error}`);
+      }
+    } catch (e) { showToast(`✗ Action failed: ${e.message}`); }
+    finally { setRevoking(false); }
+  };
+
+  const submitReportReply = async () => {
+    if (!replyingToReport || !reportReplyMsg.trim()) return;
+    setReplySaving(true);
+    try {
+      const r = await fetch(`${API}/api/admin/salons/${replyingToReport.salonId}/reports/${replyingToReport.reportId}/reply`, {
+        method: 'POST',
+        headers: authH(token),
+        body: JSON.stringify({ message: reportReplyMsg }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        showToast('✓ Reply submitted successfully.');
+        setReplyingToReport(null);
+        setReportReplyMsg('');
+        fetchAll(token);
+      } else {
+        showToast(`✗ Reply failed: ${d.error}`);
+      }
+    } catch (e) { showToast(`✗ Reply failed: ${e.message}`); }
+    finally { setReplySaving(false); }
   };
 
   const logout = () => {
@@ -419,11 +548,48 @@ export default function AdminDashboard() {
                 </div>
               </FieldGroup>
 
-              {/* Images */}
+              {/* Images — URL inputs + File upload */}
               <FieldGroup label="IMAGES">
-                <EditRow label="Banner URL"><input style={S.inp} value={editForm.banner} onChange={e => setEditForm(f => ({ ...f, banner: e.target.value }))} placeholder="https://…" /></EditRow>
-                <EditRow label="Thumbnail URL"><input style={S.inp} value={editForm.thumbnail} onChange={e => setEditForm(f => ({ ...f, thumbnail: e.target.value }))} placeholder="https://…" /></EditRow>
-                <EditRow label="Gallery URLs (one per line)">
+                <EditRow label="Banner URL or Upload">
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <input style={{ ...S.inp, flex: 1 }} value={editForm.banner} onChange={e => setEditForm(f => ({ ...f, banner: e.target.value }))} placeholder="https://… or upload file →" />
+                    <label style={S.uploadImgBtn} title="Upload file">
+                      📁
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+                        const file = e.target.files[0]; if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = ev => setEditForm(f => ({ ...f, banner: ev.target.result, thumbnail: ev.target.result }));
+                        reader.readAsDataURL(file);
+                      }} />
+                    </label>
+                  </div>
+                  {editForm.banner && <img src={editForm.banner} alt="Banner preview" style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 6, marginTop: '0.4rem' }} onError={e => { e.target.style.display='none'; }} />}
+                </EditRow>
+                <EditRow label="Thumbnail URL or Upload">
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <input style={{ ...S.inp, flex: 1 }} value={editForm.thumbnail} onChange={e => setEditForm(f => ({ ...f, thumbnail: e.target.value }))} placeholder="https://…" />
+                    <label style={S.uploadImgBtn} title="Upload file">
+                      📁
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+                        const file = e.target.files[0]; if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = ev => setEditForm(f => ({ ...f, thumbnail: ev.target.result }));
+                        reader.readAsDataURL(file);
+                      }} />
+                    </label>
+                  </div>
+                </EditRow>
+                <EditRow label="Gallery — URLs (one per line) or Upload Files">
+                  <label style={{ ...S.uploadImgBtn, width: '100%', justifyContent: 'center', marginBottom: '0.5rem', cursor: 'pointer', display: 'flex', gap: '0.4rem', boxSizing: 'border-box' }}>
+                    📁 Upload Gallery Photos
+                    <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => {
+                      Array.from(e.target.files).forEach(file => {
+                        const reader = new FileReader();
+                        reader.onload = ev => setEditForm(f => ({ ...f, gallery: f.gallery ? f.gallery + '\n' + ev.target.result : ev.target.result }));
+                        reader.readAsDataURL(file);
+                      });
+                    }} />
+                  </label>
                   <textarea style={{ ...S.inp, height: 80, resize: 'vertical', fontFamily: FONT.mono, fontSize: '0.72rem' }}
                     value={editForm.gallery}
                     onChange={e => setEditForm(f => ({ ...f, gallery: e.target.value }))}
@@ -564,41 +730,89 @@ export default function AdminDashboard() {
       {/* ── CLAIMS ───────────────────────────────────────────────────────────── */}
       {tab === 'claims' && (
         <div>
-          <h3 style={S.sectionTitle}>Pending Shop Claims ({claims.length})</h3>
-          {claims.length === 0 && <p style={S.empty}>No pending claims. All caught up! ✓</p>}
-          {claims.map(c => (
-            <div key={c._id} style={{ ...S.ratingRow, flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <div>
-                  <div style={S.bName}>{c.user?.name} <span style={S.bMeta}>({c.user?.email})</span></div>
-                  <div style={S.bMeta}>Requesting to claim salon:</div>
-                  <div style={{ ...S.bName, color: COLOR.gold, marginTop: '0.2rem' }}>{c.salon?.name || 'Unknown Salon'}</div>
-                  <div style={S.bMeta}>Hub: {c.salon?.hub || 'Unknown'}</div>
-                  {c.user?.totalBookings > 0 && <div style={{ ...S.bMeta, color: '#A5D6A7' }}>✓ {c.user.totalBookings} bookings on platform (trust signal)</div>}
-                </div>
-                <div style={S.bRight}>
-                  <div style={S.bMeta}>{new Date(c.createdAt).toLocaleDateString()}</div>
-                  <span style={{ ...S.statusPip, color: '#90CAF9' }}>{c.status}</span>
-                </div>
+          {/* Orphaned claims warning */}
+          {orphanedCount > 0 && (
+            <div style={{ padding: '0.75rem 1rem', background: 'rgba(239,83,80,0.06)', border: '1px solid rgba(239,83,80,0.25)', borderRadius: 8, marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div style={{ fontFamily: FONT.body, fontSize: '0.82rem', color: '#EF9A9A' }}>
+                ⚠ {orphanedCount} orphaned claim{orphanedCount > 1 ? 's' : ''} detected — these have no valid salon data (probably from deleted salons or test submissions).
               </div>
-              <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-                <button
-                  style={{ ...S.actBtn, background: 'rgba(76,175,80,0.1)', color: '#81C784', borderColor: 'rgba(76,175,80,0.3)' }}
-                  onClick={() => {
-                    const msg = prompt('Optional welcome message for the shop owner:');
-                    if (msg !== null) respondToClaim(c._id, 'approved', msg);
-                  }}
-                >✓ Approve Claim</button>
-                <button
-                  style={{ ...S.actBtn, background: 'rgba(239,83,80,0.1)', color: '#EF9A9A', borderColor: 'rgba(239,83,80,0.3)' }}
-                  onClick={() => {
-                    const msg = prompt('Reason for rejection (shown to user):');
-                    if (msg !== null) respondToClaim(c._id, 'rejected', msg || 'Could not verify ownership.');
-                  }}
-                >✕ Reject Claim</button>
-              </div>
+              <button
+                style={{ ...S.actBtn, color: '#EF9A9A', borderColor: 'rgba(239,83,80,0.3)', background: 'rgba(239,83,80,0.08)', minHeight: 36 }}
+                onClick={bulkRejectOrphaned}
+                disabled={bulkRejecting}
+              >
+                {bulkRejecting ? '⟳ Rejecting…' : '✕ Bulk-Reject All Orphaned'}
+              </button>
             </div>
-          ))}
+          )}
+
+          {/* Search & filter */}
+          <div style={S.searchBar}>
+            <input style={{ ...S.inp, flex: 1 }} placeholder="Search by salon, hub, user, email…"
+              value={claimSearch} onChange={e => setClaimSearch(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && fetchClaims()} />
+            <select style={S.sel} value={claimStatus} onChange={e => setClaimStatus(e.target.value)}>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="all">All Statuses</option>
+            </select>
+            <button style={S.filterBtn} onClick={fetchClaims}>Search</button>
+          </div>
+
+          <h3 style={S.sectionTitle}>
+            {claimStatus.charAt(0).toUpperCase() + claimStatus.slice(1)} Claims ({claims.length})
+          </h3>
+          {claims.length === 0 && <p style={S.empty}>No claims match the current filter. ✓</p>}
+          {claims.map(c => {
+            const claimDate = c.claimPendingAt ? new Date(c.claimPendingAt) : null;
+            const dateStr = claimDate && !isNaN(claimDate) ? claimDate.toLocaleDateString() : 'Date unknown';
+            return (
+              <div key={c._id} style={{ ...S.ratingRow, flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div>
+                    <div style={S.bName}>
+                      {c.claimPending?.name || 'Unknown User'}
+                      <span style={S.bMeta}>({c.claimPending?.email || 'no email'})</span>
+                    </div>
+                    <div style={S.bMeta}>Requesting to claim:</div>
+                    <div style={{ ...S.bName, color: COLOR.gold, marginTop: '0.2rem' }}>{c.name}</div>
+                    <div style={S.bMeta}>Hub: {c.hub} · Submitted as: "{c.claimPendingName || c.name}"</div>
+                    {c.claimPending?.totalBookings > 0 && (
+                      <div style={{ ...S.bMeta, color: '#A5D6A7' }}>✓ {c.claimPending.totalBookings} bookings on platform (trust signal)</div>
+                    )}
+                    {c.claimAdminMessage && (
+                      <div style={{ ...S.bMeta, color: '#90CAF9', marginTop: '0.3rem' }}>Admin note: {c.claimAdminMessage}</div>
+                    )}
+                  </div>
+                  <div style={S.bRight}>
+                    <div style={S.bMeta}>{dateStr}</div>
+                    <span style={{ ...S.statusPip, color: c.claimStatus === 'approved' ? '#81C784' : c.claimStatus === 'rejected' ? '#EF9A9A' : '#90CAF9' }}>
+                      {c.claimStatus?.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+                {c.claimStatus === 'pending' && (
+                  <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+                    <button
+                      style={{ ...S.actBtn, background: 'rgba(76,175,80,0.1)', color: '#81C784', borderColor: 'rgba(76,175,80,0.3)' }}
+                      onClick={() => {
+                        const msg = prompt('Optional welcome message for the shop owner:');
+                        if (msg !== null) respondToClaim(c._id, 'approve', msg);
+                      }}
+                    >✓ Approve Claim</button>
+                    <button
+                      style={{ ...S.actBtn, background: 'rgba(239,83,80,0.1)', color: '#EF9A9A', borderColor: 'rgba(239,83,80,0.3)' }}
+                      onClick={() => {
+                        const msg = prompt('Reason for rejection (shown to user):');
+                        if (msg !== null) respondToClaim(c._id, 'reject', msg || 'Could not verify ownership.');
+                      }}
+                    >✕ Reject Claim</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -641,63 +855,125 @@ export default function AdminDashboard() {
       )}
 
       {/* ── BOOKINGS ─────────────────────────────────────────────────────────── */}
-      {tab === 'bookings' && (
-        <div style={S.tableList}>
-          {bookings.map(b => (
-            <div key={b._id} style={S.bookingRow}>
-              <div style={{ minWidth: 0 }}>
-                <div style={S.bName}>{b.salonName}</div>
-                <div style={S.bMeta}>{b.salonHub} · {b.customerName} ({b.customerEmail})</div>
-              </div>
-              <div style={{ ...S.bRight, flexShrink: 0 }}>
-                <div style={S.bService}>{b.service}</div>
-                <div style={S.bMeta}>{b.date} · {b.timeSlot}</div>
-                <span style={{ ...S.statusPip, color: b.status === 'cancelled' ? '#EF5350' : '#4CAF50' }}>{b.status}</span>
-              </div>
+      {tab === 'bookings' && (() => {
+        const bFiltered = bookings.filter(b => {
+          const q = bookingSearch.toLowerCase();
+          const matchSearch = !q || b.salonName?.toLowerCase().includes(q) || b.customerName?.toLowerCase().includes(q) || b.customerEmail?.toLowerCase().includes(q);
+          const matchStatus = !bookingStatus || b.status === bookingStatus;
+          return matchSearch && matchStatus;
+        });
+        return (
+          <div>
+            <div style={S.searchBar}>
+              <input style={{ ...S.inp, flex: 1 }} placeholder="Search by salon or customer…"
+                value={bookingSearch} onChange={e => setBookingSearch(e.target.value)} />
+              <select style={S.sel} value={bookingStatus} onChange={e => setBookingStatus(e.target.value)}>
+                <option value="">All Statuses</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="pending">Pending</option>
+              </select>
             </div>
-          ))}
-          {bookings.length === 0 && <p style={S.empty}>No bookings yet.</p>}
-        </div>
-      )}
+            <div style={S.tableList}>
+              {bFiltered.map(b => (
+                <div key={b._id} style={S.bookingRow}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={S.bName}>{b.salonName}</div>
+                    <div style={S.bMeta}>{b.salonHub} · {b.customerName} ({b.customerEmail})</div>
+                  </div>
+                  <div style={{ ...S.bRight, flexShrink: 0 }}>
+                    <div style={S.bService}>{b.service}</div>
+                    <div style={S.bMeta}>{b.date} · {b.timeSlot}</div>
+                    <span style={{ ...S.statusPip, color: b.status === 'cancelled' ? '#EF5350' : '#4CAF50' }}>{b.status}</span>
+                  </div>
+                </div>
+              ))}
+              {bFiltered.length === 0 && <p style={S.empty}>No bookings match the current filter.</p>}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── DATA GAPS ────────────────────────────────────────────────────────── */}
       {tab === 'data gaps' && (
-        <div style={S.tableList}>
-          {dataGaps.map(h => (
-            <div key={h._id} style={S.gapRow}>
-              <div style={S.bName}>{h._id}</div>
-              <div style={S.gapStats}>
-                <span>{h.count} salons</span>
-                <span style={{ color: h.withCategories / h.count < 0.3 ? '#EF5350' : COLOR.textMuted }}>
-                  {Math.round((h.withCategories / h.count) * 100)}% categorized
-                </span>
-                <span style={{ color: h.withPhone / h.count < 0.3 ? '#EF5350' : COLOR.textMuted }}>
-                  {Math.round((h.withPhone / h.count) * 100)}% have phone
-                </span>
-              </div>
-            </div>
-          ))}
-          {dataGaps.length === 0 && <p style={S.empty}>All hubs have perfect data.</p>}
+        <div>
+          <div style={{ padding: '0.75rem 1rem', background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: 8, marginBottom: '1.2rem' }}>
+            <div style={{ fontFamily: FONT.mono, fontSize: '0.55rem', letterSpacing: '0.14em', color: COLOR.gold, marginBottom: '0.4rem' }}>HOW TO READ THIS</div>
+            <p style={{ fontFamily: FONT.body, fontSize: '0.8rem', color: COLOR.textMuted, margin: 0, lineHeight: 1.6 }}>
+              <strong style={{ color: COLOR.textPrimary }}>% Categorized</strong> — What % of salons in this area have a service type tag (Hair, Spa, Beauty etc.).
+              A low number means users can't filter by service in that area.<br/>
+              <strong style={{ color: COLOR.textPrimary }}>% Phone</strong> — What % of salons have a contact phone number listed.
+              Low phone coverage means users can't call or WhatsApp salons directly.
+            </p>
+          </div>
+          <div style={S.tableList}>
+            {dataGaps.map(h => {
+              const catPct = h.count > 0 ? Math.round((h.withCategories / h.count) * 100) : 0;
+              const phonePct = h.count > 0 ? Math.round((h.withPhone / h.count) * 100) : 0;
+              const catColor = catPct < 30 ? '#EF5350' : catPct < 70 ? '#FFCC80' : '#81C784';
+              const phoneColor = phonePct < 30 ? '#EF5350' : phonePct < 70 ? '#FFCC80' : '#81C784';
+              return (
+                <div key={h._id} style={{ ...S.gapRow, flexDirection: 'column', alignItems: 'stretch' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.6rem' }}>
+                    <div style={S.bName}>{h._id}</div>
+                    <span style={{ fontFamily: FONT.mono, fontSize: '0.65rem', color: COLOR.textGhost }}>{h.count} salons</span>
+                  </div>
+                  {/* Service categories progress bar */}
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                      <span style={{ fontFamily: FONT.mono, fontSize: '0.6rem', color: COLOR.textGhost }}>SERVICE TAGS</span>
+                      <span style={{ fontFamily: FONT.mono, fontSize: '0.6rem', color: catColor }}>{catPct}%</span>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                      <div style={{ width: `${catPct}%`, height: '100%', background: catColor, borderRadius: 4, transition: 'width 0.5s' }} />
+                    </div>
+                  </div>
+                  {/* Phone coverage progress bar */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                      <span style={{ fontFamily: FONT.mono, fontSize: '0.6rem', color: COLOR.textGhost }}>PHONE COVERAGE</span>
+                      <span style={{ fontFamily: FONT.mono, fontSize: '0.6rem', color: phoneColor }}>{phonePct}%</span>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                      <div style={{ width: `${phonePct}%`, height: '100%', background: phoneColor, borderRadius: 4, transition: 'width 0.5s' }} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {dataGaps.length === 0 && <p style={S.empty}>All hubs have complete data.</p>}
+          </div>
         </div>
       )}
 
       {/* ── ACTIVITY ─────────────────────────────────────────────────────────── */}
-      {tab === 'activity' && (
-        <div style={S.tableList}>
-          {activity.map((a, i) => (
-            <div key={i} style={S.bookingRow}>
-              <div style={{ minWidth: 0 }}>
-                <div style={S.bName}>{a.action}</div>
-                <div style={S.bMeta}>{a.name} ({a.email})</div>
-              </div>
-              <div style={S.bRight}>
-                <div style={S.bMeta}>{new Date(a.createdAt).toLocaleString()}</div>
-              </div>
+      {tab === 'activity' && (() => {
+        const aFiltered = activity.filter(a =>
+          !activityFilter || (a.action || '').toLowerCase().includes(activityFilter.toLowerCase())
+        );
+        return (
+          <div>
+            <div style={S.searchBar}>
+              <input style={{ ...S.inp, flex: 1 }} placeholder="Filter by action type…"
+                value={activityFilter} onChange={e => setActivityFilter(e.target.value)} />
             </div>
-          ))}
-          {activity.length === 0 && <p style={S.empty}>No activity recorded yet.</p>}
-        </div>
-      )}
+            <div style={S.tableList}>
+              {aFiltered.map((a, i) => (
+                <div key={i} style={S.bookingRow}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={S.bName}>{a.action}</div>
+                    <div style={S.bMeta}>{a.name} ({a.email})</div>
+                  </div>
+                  <div style={S.bRight}>
+                    <div style={S.bMeta}>{new Date(a.createdAt).toLocaleString()}</div>
+                  </div>
+                </div>
+              ))}
+              {aFiltered.length === 0 && <p style={S.empty}>No activity matches the current filter.</p>}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── EXPANSION INTELLIGENCE ───────────────────────────────────────────── */}
       {tab === 'expansion' && (
@@ -737,15 +1013,30 @@ export default function AdminDashboard() {
                   onClick={() => toggleSalonDisabled(s)}
                 >⊖ Disable Salon</button>
               </div>
-              {s.reports.filter(r => r.status === 'pending').map((r, j) => (
-                <div key={j} style={{ background: 'rgba(239,68,68,0.05)', borderLeft: '2px solid #ef4444', padding: '0.6rem', marginBottom: '0.4rem', width: '100%', boxSizing: 'border-box', borderRadius: '0 6px 6px 0' }}>
-                  <div style={S.bService}>Reason: {r.reason}</div>
+              {s.reports.map((r, j) => (
+                <div key={j} style={{ background: r.status === 'pending' ? 'rgba(239,68,68,0.05)' : 'rgba(76,175,80,0.05)', borderLeft: r.status === 'pending' ? '2px solid #ef4444' : '2px solid #4caf50', padding: '0.6rem', marginBottom: '0.4rem', width: '100%', boxSizing: 'border-box', borderRadius: '0 6px 6px 0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={S.bService}>Reason: {r.reason}</div>
+                    <span style={{ fontFamily: FONT.mono, fontSize: '0.6rem', color: r.status === 'pending' ? '#ef4444' : '#4caf50' }}>{r.status.toUpperCase()}</span>
+                  </div>
                   <div style={S.bMeta}>Details: {r.details}</div>
                   <div style={S.bMeta}>Reported by: {r.user?.name || 'Anonymous'} · {new Date(r.createdAt).toLocaleString()}</div>
-                  <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                    <button style={{ ...S.actBtn, fontSize: '0.7rem' }} onClick={() => dismissReport(s._id, r._id, 'resolved')}>✓ Resolved</button>
-                    <button style={{ ...S.actBtn, fontSize: '0.7rem', color: COLOR.textGhost }} onClick={() => dismissReport(s._id, r._id, 'dismissed')}>Dismiss</button>
-                  </div>
+                  
+                  {r.replyMessage && (
+                    <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: 4, border: '1px dashed rgba(212,175,55,0.2)' }}>
+                      <div style={{ fontFamily: FONT.mono, fontSize: '0.58rem', color: COLOR.gold, marginBottom: '0.2rem' }}>✦ ADMIN RESPONSE / AI REPLY</div>
+                      <div style={{ fontFamily: FONT.body, fontSize: '0.75rem', color: COLOR.textPrimary }}>{r.replyMessage}</div>
+                      {r.repliedAt && <div style={{ fontFamily: FONT.mono, fontSize: '0.55rem', color: COLOR.textGhost, marginTop: '0.2rem' }}>Replied at: {new Date(r.repliedAt).toLocaleString()}</div>}
+                    </div>
+                  )}
+
+                  {r.status === 'pending' && (
+                    <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                      <button style={{ ...S.actBtn, fontSize: '0.7rem' }} onClick={() => dismissReport(s._id, r._id, 'resolved')}>✓ Resolved</button>
+                      <button style={{ ...S.actBtn, fontSize: '0.7rem', color: COLOR.gold }} onClick={() => setReplyingToReport({ salonId: s._id, reportId: r._id, salonName: s.name, reason: r.reason })}>💬 Reply to User</button>
+                      <button style={{ ...S.actBtn, fontSize: '0.7rem', color: COLOR.textGhost }} onClick={() => dismissReport(s._id, r._id, 'dismissed')}>Dismiss</button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -756,37 +1047,173 @@ export default function AdminDashboard() {
 
       {/* ── USERS ────────────────────────────────────────────────────────────── */}
       {tab === 'users' && (
-        <div style={S.tableList}>
-          {users.map(u => (
-            <div key={u._id} style={{ ...S.bookingRow, opacity: u.disabled ? 0.5 : 1 }}>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                  <span style={S.bName}>{u.name}</span>
-                  <span style={{ ...S.roleBadge, ...(u.role === 'admin' ? S.roleBadgeAdmin : u.role === 'owner' ? S.roleBadgeOwner : {}) }}>
-                    {u.role.toUpperCase()}
-                  </span>
-                  {u.disabled && <span style={S.disabledBadge}>SUSPENDED</span>}
+        <div>
+          <div style={S.searchBar}>
+            <input style={{ ...S.inp, flex: 1 }} placeholder="Search by name or email…"
+              value={userSearch} onChange={e => setUserSearch(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && fetchUsers()} />
+            <select style={S.sel} value={userRoleFilter} onChange={e => setUserRoleFilter(e.target.value)}>
+              <option value="">All Roles</option>
+              <option value="user">User</option>
+              <option value="owner">Owner</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button style={S.filterBtn} onClick={fetchUsers}>Search</button>
+          </div>
+          <div style={S.tableList}>
+            {users.map(u => (
+              <div key={u._id} style={{ ...S.bookingRow, opacity: u.disabled ? 0.5 : 1 }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <span style={S.bName}>{u.name}</span>
+                    <span style={{ ...S.roleBadge, ...(u.role === 'admin' ? S.roleBadgeAdmin : u.role === 'owner' ? S.roleBadgeOwner : {}) }}>
+                      {u.role.toUpperCase()}
+                    </span>
+                    {u.disabled && <span style={S.disabledBadge}>SUSPENDED</span>}
+                  </div>
+                  <div style={S.bMeta}>{u.email} · Level {u.level || 1} ({u.xp || 0} XP)</div>
+                  <div style={S.bMeta}>Joined: {new Date(u.createdAt).toLocaleDateString()} · {u.totalBookings || 0} bookings</div>
+                  {u.shopClaimStatus && u.shopClaimStatus !== 'none' && (
+                    <div style={{ ...S.bMeta, color: u.shopClaimStatus === 'approved' ? '#81C784' : u.shopClaimStatus === 'rejected' ? '#EF9A9A' : '#90CAF9' }}>
+                      Shop claim: {u.shopClaimStatus}
+                    </div>
+                  )}
                 </div>
-                <div style={S.bMeta}>{u.email} · Level {u.level || 1} ({u.xp || 0} XP)</div>
-                <div style={S.bMeta}>Joined: {new Date(u.createdAt).toLocaleDateString()} · {u.totalBookings || 0} bookings</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'flex-end', flexShrink: 0 }}>
+                  <div style={{ fontFamily: FONT.mono, fontSize: '0.55rem', color: COLOR.textGhost }}>ROLE</div>
+                  <select value={u.role} onChange={e => changeUserRole(u._id, e.target.value)} style={S.sel}>
+                    <option value="user">User</option>
+                    <option value="owner">Owner</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                  <button
+                    style={{ ...S.actBtn, color: u.disabled ? '#81C784' : '#EF9A9A', borderColor: u.disabled ? 'rgba(76,175,80,0.3)' : 'rgba(239,83,80,0.3)', fontSize: '0.68rem' }}
+                    onClick={() => toggleUserDisabled(u)}
+                  >
+                    {u.disabled ? '⊕ Restore' : '⊖ Suspend'}
+                  </button>
+                </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'flex-end', flexShrink: 0 }}>
-                <div style={{ fontFamily: FONT.mono, fontSize: '0.55rem', color: COLOR.textGhost }}>ROLE</div>
-                <select value={u.role} onChange={e => changeUserRole(u._id, e.target.value)} style={S.sel}>
-                  <option value="user">User</option>
-                  <option value="owner">Owner</option>
-                  <option value="admin">Admin</option>
-                </select>
+            ))}
+            {users.length === 0 && <p style={S.empty}>No users match the current filter.</p>}
+          </div>
+        </div>
+      )}
+
+      {/* ── AI QUALITY SCANNER ─────────────────────────────────────────────────── */}
+      {tab === 'scanner' && (
+        <div>
+          <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <div style={{ fontFamily: FONT.mono, fontSize: '0.65rem', letterSpacing: '0.14em', color: COLOR.gold, marginBottom: '0.4rem' }}>AURA PLATFORM QUALITY AUDIT & AI SCANNER</div>
+              <p style={{ fontFamily: FONT.body, fontSize: '0.82rem', color: COLOR.textMuted, lineHeight: 1.6, margin: 0 }}>
+                This intelligent scanner crawls all registered salon listings to audit contact details, placeholder coordinates, spam content, and verify owner authenticity. Use it to revoke fake claims instantly and return shops to the marketplace claim queue.
+              </p>
+            </div>
+            <button 
+              style={{ ...S.filterBtn, background: COLOR.gold, color: '#000', fontWeight: 'bold' }} 
+              onClick={runScanner} 
+              disabled={scanning}
+            >
+              {scanning ? 'Analyzing Listings…' : '✦ Run Quality Audit Scan'}
+            </button>
+          </div>
+
+          {scanning && (
+            <div style={{ textAlign: 'center', padding: '3rem', fontFamily: FONT.mono, color: COLOR.gold, fontSize: '0.85rem' }}>
+              ⟳ Scanning database pipeline... Analysing profiles for placeholder keywords, duplicate coordinates, and missing metadata.
+            </div>
+          )}
+
+          {!scanning && scannerResults.length === 0 && (
+            <p style={S.empty}>✓ No quality flags or placeholder claims found. The platform database is fully optimized!</p>
+          )}
+
+          {!scanning && scannerResults.length > 0 && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
+                <h3 style={S.sectionTitle}>Flagged Issues ({scannerResults.length})</h3>
                 <button
-                  style={{ ...S.actBtn, color: u.disabled ? '#81C784' : '#EF9A9A', borderColor: u.disabled ? 'rgba(76,175,80,0.3)' : 'rgba(239,83,80,0.3)', fontSize: '0.68rem' }}
-                  onClick={() => toggleUserDisabled(u)}
+                  style={{ ...S.actBtn, color: '#EF9A9A', borderColor: 'rgba(239,83,80,0.4)', background: 'rgba(239,83,80,0.1)' }}
+                  onClick={() => revokeClaims(scannerResults.filter(s => s.listingVerified).map(s => s._id))}
+                  disabled={revoking || scannerResults.filter(s => s.listingVerified).length === 0}
                 >
-                  {u.disabled ? '⊕ Restore' : '⊖ Suspend'}
+                  ✕ Revoke All Verified Claims with Issues
                 </button>
               </div>
+
+              <div style={S.tableList}>
+                {scannerResults.map(s => (
+                  <div key={s._id} style={{ ...S.bookingRow, flexDirection: 'column', alignItems: 'stretch', borderColor: 'rgba(239,83,80,0.2)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      <div>
+                        <div style={{ ...S.bName, color: COLOR.gold }}>{s.name} <span style={S.bMeta}>({s.hub})</span></div>
+                        <div style={S.bMeta}>ID: {s._id} · Phone: {s.contact?.phone || 'Missing'} · Web: {s.contact?.website || 'Missing'}</div>
+                        {s.owner && (
+                          <div style={{ ...S.bMeta, color: COLOR.gold }}>👤 Claimed by: {s.owner.name} ({s.owner.email})</div>
+                        )}
+                      </div>
+                      
+                      {s.listingVerified && (
+                        <button
+                          style={{ ...S.actBtn, color: '#EF9A9A', borderColor: 'rgba(239,83,80,0.3)', padding: '0.3rem 0.6rem', fontSize: '0.7rem' }}
+                          onClick={() => revokeClaims([s._id])}
+                          disabled={revoking}
+                        >
+                          Revoke Claim
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{ marginTop: '0.6rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                      {s.reasons.map((r, idx) => (
+                        <div key={idx} style={{ fontFamily: FONT.mono, fontSize: '0.72rem', color: '#FF8A80', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                          ⚠️ {r}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-          {users.length === 0 && <p style={S.empty}>No platform users registered.</p>}
+          )}
+        </div>
+      )}
+
+      {/* Report Reply Modal */}
+      {replyingToReport && (
+        <div style={S.modalOverlay} onClick={() => setReplyingToReport(null)}>
+          <div style={{ ...S.modal, maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+            <div style={S.modalHeader}>
+              <span style={{ fontFamily: FONT.mono, fontSize: '0.6rem', letterSpacing: '0.15em', color: COLOR.gold }}>REPLY TO USER REPORT</span>
+              <button style={S.closeBtn} onClick={() => setReplyingToReport(null)}>✕</button>
+            </div>
+            <div style={{ ...S.modalBody, padding: '1.5rem' }}>
+              <div style={{ fontFamily: FONT.mono, fontSize: '0.7rem', color: COLOR.textGhost, marginBottom: '0.5rem' }}>SHOP: {replyingToReport.salonName}</div>
+              <div style={{ fontFamily: FONT.body, fontSize: '0.8rem', color: '#EF9A9A', marginBottom: '1.2rem', padding: '0.5rem', background: 'rgba(239,83,80,0.06)', borderRadius: 6, borderLeft: '2px solid #ef4444' }}>
+                Reason: {replyingToReport.reason}
+              </div>
+              
+              <FieldGroup label="REPLY MESSAGE">
+                <textarea 
+                  style={{ ...S.inp, height: 120, resize: 'vertical' }} 
+                  placeholder="Explain how this issue is handled or request further details..."
+                  value={reportReplyMsg}
+                  onChange={e => setReportReplyMsg(e.target.value)}
+                />
+              </FieldGroup>
+            </div>
+            <div style={S.modalFooter}>
+              <button style={S.cancelBtn} onClick={() => setReplyingToReport(null)}>Cancel</button>
+              <button 
+                style={{ ...S.saveBtn, opacity: replySaving ? 0.6 : 1 }} 
+                onClick={submitReportReply} 
+                disabled={replySaving || !reportReplyMsg.trim()}
+              >
+                {replySaving ? 'Sending…' : '✓ Send & Resolve Report'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -911,5 +1338,11 @@ const S = {
   inp:          { width: '100%', padding: '0.65rem 0.8rem', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 7, outline: 'none', fontFamily: FONT.body, fontSize: '0.85rem', color: COLOR.textPrimary, boxSizing: 'border-box' },
   sel:          { padding: '0.55rem 0.7rem', background: 'rgba(18,14,24,0.85)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: 6, color: COLOR.textPrimary, fontFamily: FONT.body, fontSize: '0.82rem', cursor: 'pointer', outline: 'none', minHeight: 44 },
   saveBtn:      { padding: '0.65rem 1.4rem', background: 'linear-gradient(135deg,#FFF2A8,#D4AF37)', border: 'none', borderRadius: 8, fontFamily: FONT.mono, fontSize: '0.78rem', fontWeight: 700, color: '#000', cursor: 'pointer', letterSpacing: '0.1em', minHeight: 44 },
+  // Upload image button in edit modal
+  uploadImgBtn: {
+    padding: '0.55rem 0.7rem', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.25)',
+    borderRadius: 6, color: COLOR.gold, cursor: 'pointer', fontSize: '0.85rem', flexShrink: 0,
+    display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', minHeight: 36,
+  },
   cancelBtn:    { padding: '0.65rem 1.2rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, fontFamily: FONT.mono, fontSize: '0.78rem', color: COLOR.textMuted, cursor: 'pointer', minHeight: 44 },
 };

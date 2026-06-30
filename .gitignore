@@ -3,3 +3,7 @@ node_modules
 server/node_modules
 client/node_modules
 .env
+server/AURA.salons.json
+server/generateSalons.json
+server/.antigravityignore
+client/.env

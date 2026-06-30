@@ -281,6 +281,33 @@ export const getActivityStream = async (req, res) => {
 
 export const getReports = async (req, res) => {
   try {
+    // ── AI Auto-Reply trigger for pending reports > 10 days old ─────────────
+    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+    const salonsToAutoReply = await Salon.find({
+      'reports': {
+        $elemMatch: {
+          status: 'pending',
+          createdAt: { $lte: tenDaysAgo },
+          replyMessage: null
+        }
+      }
+    });
+
+    for (let salon of salonsToAutoReply) {
+      let modified = false;
+      salon.reports.forEach(report => {
+        if (report.status === 'pending' && report.createdAt <= tenDaysAgo && !report.replyMessage) {
+          report.replyMessage = `AI Auto-Reply: Thank you for reporting this issue about "${salon.name}". The system has automatically escalated this to the verification team. We will review details for category labels, landmarks, or potential closing status soon.`;
+          report.repliedAt = new Date();
+          report.status = 'resolved';
+          modified = true;
+        }
+      });
+      if (modified) {
+        await salon.save();
+      }
+    }
+
     const salonsWithReports = await Salon.find({ 'reports.0': { $exists: true } })
       .select('name hub reports')
       .populate('reports.user', 'name email')
@@ -291,11 +318,142 @@ export const getReports = async (req, res) => {
   }
 };
 
+export const replyToReport = async (req, res) => {
+  try {
+    const { salonId, reportId } = req.params;
+    const { message, status = 'resolved' } = req.body;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ success: false, error: 'Reply message cannot be empty.' });
+    }
+
+    const salon = await Salon.findById(salonId);
+    if (!salon) return res.status(404).json({ success: false, error: 'Salon not found.' });
+
+    const report = salon.reports.id(reportId);
+    if (!report) return res.status(404).json({ success: false, error: 'Report not found.' });
+
+    report.replyMessage = message;
+    report.repliedAt = new Date();
+    report.repliedBy = req.user.sub;
+    report.status = status;
+
+    await salon.save();
+    return res.json({ success: true, message: `Report replied to successfully and marked as ${status}.` });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+export const scanFakeSalons = async (req, res) => {
+  try {
+    // Look up salons that match fake/placeholder attributes
+    const salons = await Salon.find({}).populate('owner', 'name email').lean();
+    const flagged = [];
+
+    salons.forEach(s => {
+      const reasons = [];
+
+      // 1. Placeholder Phone Numbers
+      const phone = s.contact?.phone || '';
+      if (phone) {
+        if (/99999|12345|00000|11111/.test(phone)) {
+          reasons.push('Placeholder phone number detected (' + phone + ')');
+        }
+      } else if (s.listingVerified) {
+        reasons.push('Verified listing but phone number is missing');
+      }
+
+      // 2. Placeholder Websites
+      const web = s.contact?.website || '';
+      if (web) {
+        if (/example\.com|test\.com|localhost|temp\.com/.test(web)) {
+          reasons.push('Placeholder website detected (' + web + ')');
+        }
+      }
+
+      // 3. Fake Claims (Verified but no owner, or owner is dummy)
+      if (s.listingVerified) {
+        if (!s.owner) {
+          reasons.push('Listing marked as verified but has NO associated owner account (orphaned)');
+        } else if (s.owner.email && /test@|dummy@|placeholder@/.test(s.owner.email)) {
+          reasons.push('Listing claimed by a dummy/placeholder email account (' + s.owner.email + ')');
+        }
+      }
+
+      // 4. Missing Critical Data
+      if (!s.serviceCategories || s.serviceCategories.length === 0) {
+        reasons.push('Missing service categories');
+      }
+      if (!s.location?.coordinates || s.location.coordinates.length < 2) {
+        reasons.push('Invalid or missing geolocational coordinates');
+      }
+
+      if (reasons.length > 0) {
+        flagged.push({
+          _id: s._id,
+          name: s.name,
+          hub: s.hub,
+          listingVerified: s.listingVerified,
+          owner: s.owner,
+          contact: s.contact,
+          reasons
+        });
+      }
+    });
+
+    return res.json({ success: true, count: flagged.length, salons: flagged });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+export const revokeFakeClaims = async (req, res) => {
+  try {
+    const { ids } = req.body; // Array of salon IDs to revoke
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'Array of salon IDs is required.' });
+    }
+
+    let revoked = 0;
+    for (let id of ids) {
+      const salon = await Salon.findById(id);
+      if (salon) {
+        // Reset claim status, owner and verified details so it goes back to unclaimed/claimable!
+        salon.listingVerified = false;
+        salon.listingVerifiedAt = null;
+        salon.listingVerifiedBy = null;
+        salon.owner = null;
+        salon.claimStatus = 'none';
+        salon.claimAdminMessage = 'Listing verification revoked automatically by AI Quality Scanner due to fake/incomplete profile credentials.';
+        salon.claimPending = null;
+        salon.claimPendingAt = null;
+        salon.badgeType = 'NONE';
+        await salon.save();
+        revoked++;
+      }
+    }
+
+    return res.json({ success: true, message: `Successfully revoked verification and reset ${revoked} salons back to unclaimed.`, revoked });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 export const getUsers = async (req, res) => {
   try {
-    const users = await User.find({})
+    const { search = '', role = '' } = req.query;
+    const filter = {};
+    if (role && ['user','admin','owner'].includes(role)) filter.role = role;
+    if (search) {
+      filter.$or = [
+        { name:  { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+      ];
+    }
+    const users = await User.find(filter)
       .sort({ createdAt: -1 })
-      .select('name email role level xp createdAt')
+      .select('name email role level xp createdAt disabled totalBookings shopClaimStatus')
       .lean();
     return res.json({ success: true, users });
   } catch (err) {
@@ -331,18 +489,71 @@ export const updateUserRole = async (req, res) => {
 // ── Shop Claim Management ───────────────────────────────────────────────────
 export const getClaims = async (req, res) => {
   try {
-    const { status = 'pending' } = req.query;
+    const { status = 'pending', search = '' } = req.query;
     const filter = {};
     if (status !== 'all') filter.claimStatus = status;
     else filter.claimStatus = { $ne: 'none' };
 
+    // Only show claims that have real data (filter orphaned/unknown entries)
+    filter.claimPendingAt = { $ne: null };
+    filter.name = { $exists: true, $ne: null, $ne: '' };
+
     const salons = await Salon.find(filter)
       .select('name hub claimStatus claimPending claimPendingAt claimPendingName claimAdminMessage claimResolvedAt owner')
-      .populate('claimPending', 'name email')
+      .populate('claimPending', 'name email totalBookings')
       .sort({ claimPendingAt: -1 })
       .lean();
 
-    return res.json({ success: true, claims: salons });
+    // Apply text search filter client-safe on name/hub/user
+    const filtered = search
+      ? salons.filter(c =>
+          c.name?.toLowerCase().includes(search.toLowerCase()) ||
+          c.hub?.toLowerCase().includes(search.toLowerCase()) ||
+          c.claimPending?.name?.toLowerCase().includes(search.toLowerCase()) ||
+          c.claimPending?.email?.toLowerCase().includes(search.toLowerCase())
+        )
+      : salons;
+
+    // Count total orphaned for admin awareness
+    const orphanedCount = await Salon.countDocuments({
+      claimStatus: 'pending',
+      $or: [{ claimPendingAt: null }, { name: null }, { name: '' }]
+    });
+
+    return res.json({ success: true, claims: filtered, orphanedCount });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// ── Bulk-reject orphaned claims (invalid date, no name, etc.) ────────────────
+export const bulkRejectOrphanedClaims = async (req, res) => {
+  try {
+    // Find salons with 'pending' claim but no valid claimPendingAt or name
+    const orphaned = await Salon.find({
+      claimStatus: 'pending',
+      $or: [{ claimPendingAt: null }, { name: null }, { name: '' }]
+    }).populate('claimPending', '_id');
+
+    let rejected = 0;
+    for (const salon of orphaned) {
+      salon.claimStatus       = 'rejected';
+      salon.claimAdminMessage = 'Auto-rejected: incomplete claim data.';
+      salon.claimResolvedAt   = new Date();
+      const claimantId = salon.claimPending?._id;
+      salon.claimPending      = null;
+      salon.claimPendingAt    = null;
+      await salon.save();
+      if (claimantId) {
+        await User.findByIdAndUpdate(claimantId, {
+          shopClaimStatus: 'rejected',
+          shopClaimMessage: 'Your claim was automatically rejected because the salon details were incomplete. Please re-submit with full information.',
+        });
+      }
+      rejected++;
+    }
+
+    return res.json({ success: true, message: `Bulk-rejected ${rejected} orphaned claims.`, rejected });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
@@ -414,7 +625,7 @@ export const respondToClaim = async (req, res) => {
 // ── Full shop browsing for admin (replaces need to open MongoDB Compass) ────
 export const getAllSalons = async (req, res) => {
   try {
-    const { search = '', hub = '', disabled, page = 1, limit = 20 } = req.query;
+    const { search = '', hub = '', disabled, type = 'all', page = 1, limit = 20 } = req.query;
     const filter = {};
     if (search) filter.$or = [
       { name: { $regex: search, $options: 'i' } },
@@ -423,6 +634,13 @@ export const getAllSalons = async (req, res) => {
     if (hub) filter.hub = new RegExp(hub, 'i');
     if (disabled === 'true')  filter.disabled = true;
     if (disabled === 'false') filter.disabled = { $ne: true };
+
+    if (type === 'listed') {
+      filter.$or = [{ listingVerified: true }, { owner: { $ne: null } }];
+    } else if (type === 'unlisted') {
+      filter.listingVerified = { $ne: true };
+      filter.owner = null;
+    }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [salons, total] = await Promise.all([

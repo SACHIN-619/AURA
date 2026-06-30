@@ -139,7 +139,43 @@ const SalonCard = forwardRef(function SalonCard({
   const [showSchedulePrompt, setShowSchedulePrompt] = useState(false);
   const [showMapEmbed, setShowMapEmbed] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const claimTimerRef = useRef(null);
+
+  // Collect all valid images for the automatic slideshow (linked list style)
+  // Non-verified/unclaimed salons show only the single default image set by our system.
+  // Verified/claimed salons showcase their uploaded images (banner, thumbnail, gallery).
+  const galleryImages = [];
+  const isClaimedOrVerified = salon.listingVerified || salon.owner || salon.claimStatus === 'approved';
+
+  if (isClaimedOrVerified) {
+    if (salon.images?.banner) galleryImages.push(salon.images.banner);
+    if (salon.images?.thumbnail) galleryImages.push(salon.images.thumbnail);
+    if (Array.isArray(salon.images?.gallery)) {
+      salon.images.gallery.forEach(img => {
+        if (img && !galleryImages.includes(img)) galleryImages.push(img);
+      });
+    }
+  }
+
+  // Fallback to the single default system image if unclaimed/unverified or has no custom images
+  if (galleryImages.length === 0) {
+    galleryImages.push(getSalonPhoto(salon, idx));
+  }
+
+  const [currentImgIdx, setCurrentImgIdx] = useState(0);
+
+  useEffect(() => {
+    if (galleryImages.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentImgIdx(prev => (prev + 1) % galleryImages.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [galleryImages.length]);
+
+  useEffect(() => {
+    setCurrentImgIdx(0);
+  }, [salon._id]);
 
   useEffect(() => {
     if (!salon._isDemo && salon._id) {
@@ -255,10 +291,16 @@ const SalonCard = forwardRef(function SalonCard({
         <div style={S.photoWrap}>
           {!imgFailed ? (
             <img 
-              src={getSalonPhoto(salon, idx)} 
+              src={galleryImages[currentImgIdx] || getSalonPhoto(salon, idx)} 
               alt={name} 
               loading="lazy" 
-              onError={() => setImgFailed(true)} 
+              onError={(e) => {
+                if (e.currentTarget.src !== getSalonPhoto(salon, idx)) {
+                  e.currentTarget.src = getSalonPhoto(salon, idx);
+                } else {
+                  setImgFailed(true);
+                }
+              }} 
               style={{...S.photo, transform: hov ? 'scale(1.04)' : 'scale(1)', filter: hov ? 'brightness(0.9)' : 'brightness(0.8)'}}
             />
           ) : (
@@ -267,6 +309,22 @@ const SalonCard = forwardRef(function SalonCard({
             </div>
           )}
           <div style={S.fade}/>
+
+          {/* Connected dots showing multiple photos in a sequential/linked list manner */}
+          {galleryImages.length > 1 && (
+            <div style={S.dotContainer}>
+              {galleryImages.map((_, i) => (
+                <span 
+                  key={i} 
+                  style={{
+                    ...S.dot,
+                    background: i === currentImgIdx ? COLOR.gold : 'rgba(255,255,255,0.4)',
+                    width: i === currentImgIdx ? 12 : 6
+                  }} 
+                />
+              ))}
+            </div>
+          )}
 
           {categories.length > 0 && (
             <span style={S.categoryChip}>
@@ -314,12 +372,18 @@ const SalonCard = forwardRef(function SalonCard({
                     >
                       {/* Show owner info for claimed shops */}
                       {salon.listingVerified && (
-                        <div style={{ padding: '8px 12px', borderBottom: '1px solid rgba(212,175,55,0.1)', marginBottom: '2px' }}>
-                          <div style={{ fontFamily: FONT.mono, fontSize: '0.58rem', color: COLOR.gold, letterSpacing: '0.1em', marginBottom: '2px' }}>OWNER CLAIMED</div>
-                          <div style={{ fontFamily: FONT.body, fontSize: '0.72rem', color: COLOR.textMuted }}>
-                            {salon.claimPendingName || 'Verified listing'}
-                          </div>
-                        </div>
+                        <button 
+                          style={{ background:'transparent', border:'none', color:COLOR.gold, padding:'8px 12px', textAlign:'left', fontSize:'0.78rem', fontFamily:FONT.mono, cursor:'pointer', width:'100%', borderRadius:'4px' }} 
+                          onClick={(e) => { 
+                            e.stopPropagation();
+                            setShowActionMenu(false); 
+                            setShowDetailsModal(true); 
+                          }}
+                          onMouseOver={(e)=>e.currentTarget.style.background='rgba(212,175,55,0.1)'}
+                          onMouseOut={(e)=>e.currentTarget.style.background='transparent'}
+                        >
+                          👑 View Shop Details
+                        </button>
                       )}
                       {/* Claim option — hidden for admin and already-verified shops */}
                       {!salon.listingVerified && user?.role !== 'admin' && (
@@ -545,11 +609,89 @@ const SalonCard = forwardRef(function SalonCard({
           />
         )}
       </AnimatePresence>
+      <AnimatePresence>
+        {showDetailsModal && (
+          <ShopDetailsModal
+            key="details"
+            salon={salon}
+            onClose={() => setShowDetailsModal(false)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 });
 
 export default SalonCard;
+
+// ── Shop Details Modal ────────────────────────────────────────────────────────
+function ShopDetailsModal({ salon, onClose }) {
+  const name = salon.name || 'Unnamed Boutique';
+  const ownerName = salon.owner?.name || salon.claimPendingName || 'Verified Owner';
+  const ownerEmail = salon.owner?.email || 'contact@salon.com';
+  const phone = salon.contact?.phone || 'Not available';
+  const website = salon.contact?.website || 'Not available';
+  const address = safeAddress(salon) || salon.hub || 'Hyderabad';
+  const services = Array.isArray(salon.services) ? salon.services : [];
+
+  return (
+    <motion.div
+      style={SM.overlay}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        style={{ ...SM.box, maxWidth: 460 }}
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.8rem', justifyContent: 'center' }}>
+          <span style={{ fontSize: '1.5rem' }}>👑</span>
+          <span style={{ fontFamily: FONT.mono, fontSize: '0.65rem', color: COLOR.gold, letterSpacing: '0.15em', fontWeight: 'bold' }}>VERIFIED SHOP DETAILS</span>
+        </div>
+        
+        <h3 style={{ ...SM.title, marginBottom: '0.2rem' }}>{name}</h3>
+        <p style={{ fontFamily: FONT.mono, fontSize: '0.6rem', color: COLOR.textGhost, textAlign: 'center', margin: '0 0 1.2rem 0' }}>📍 {address}</p>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginBottom: '1.4rem' }}>
+          <div style={{ background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.12)', borderRadius: 8, padding: '0.75rem' }}>
+            <div style={{ fontFamily: FONT.mono, fontSize: '0.55rem', color: COLOR.gold, marginBottom: '0.3rem', letterSpacing: '0.05em' }}>✦ SHOP OWNER INFO</div>
+            <div style={{ fontFamily: FONT.body, fontSize: '0.8rem', color: COLOR.textPrimary, marginBottom: '0.2rem' }}>👤 {ownerName}</div>
+            <div style={{ fontFamily: FONT.mono, fontSize: '0.65rem', color: COLOR.textMuted }}>✉ {ownerEmail}</div>
+          </div>
+
+          <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '0.75rem' }}>
+            <div style={{ fontFamily: FONT.mono, fontSize: '0.55rem', color: COLOR.textGhost, marginBottom: '0.3rem', letterSpacing: '0.05em' }}>✦ CONTACT & BOOKING DETAILS</div>
+            <div style={{ fontFamily: FONT.body, fontSize: '0.75rem', color: COLOR.textMuted, marginBottom: '0.2rem' }}>📞 Phone: <span style={{ color: COLOR.textPrimary }}>{phone}</span></div>
+            <div style={{ fontFamily: FONT.body, fontSize: '0.75rem', color: COLOR.textMuted }}>🌐 Website: <a href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noopener noreferrer" style={{ color: COLOR.gold, textDecoration: 'none' }}>{website}</a></div>
+          </div>
+
+          {services.length > 0 && (
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '0.75rem', maxHeight: '150px', overflowY: 'auto' }}>
+              <div style={{ fontFamily: FONT.mono, fontSize: '0.55rem', color: COLOR.textGhost, marginBottom: '0.4rem', letterSpacing: '0.05em' }}>✦ SERVICES & PRICING</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {services.map((srv, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontFamily: FONT.body, fontSize: '0.75rem', color: COLOR.textPrimary }}>
+                    <span>✂ {srv.name}</span>
+                    <span style={{ color: COLOR.gold, fontFamily: FONT.mono }}>₹{srv.price}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={SM.actions}>
+          <button style={{ ...SM.cancelBtn, background: 'linear-gradient(135deg,#FFF2A8,#D4AF37)', color: '#000', fontWeight: 'bold' }} onClick={onClose}>Close Details</button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
 
 // ── Map Embed Modal ───────────────────────────────────────────────────────────
 function MapEmbedModal({ salonName, mapsUrl, coords, onClose }) {
@@ -636,6 +778,25 @@ const SM = {
 const S = {
   card: { position: 'relative', background: COLOR.glass, borderRadius: 14, overflow: 'hidden', cursor: 'default', transition: 'box-shadow 0.25s, transform 0.1s ease-out', backdropFilter: 'blur(18px)', transformStyle: 'preserve-3d' },
   photoWrap: { position: 'relative', width: '100%', height: 180, overflow: 'hidden', background: '#0d0a13' },
+  dotContainer: {
+    position: 'absolute',
+    bottom: 12,
+    left: '50%',
+    transform: 'translateX(-50%)',
+    display: 'flex',
+    gap: '6px',
+    zIndex: 2,
+    background: 'rgba(13,10,19,0.7)',
+    backdropFilter: 'blur(4px)',
+    padding: '4px 8px',
+    borderRadius: '10px'
+  },
+  dot: {
+    height: 6,
+    borderRadius: '50%',
+    display: 'inline-block',
+    transition: 'all 0.25s ease'
+  },
   photo: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease, filter 0.5s' },
   fallback: { width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(145deg,#0d0a13,#1c1622)' },
   fade: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: `linear-gradient(transparent, ${COLOR.glass})`, pointerEvents: 'none', zIndex: 1 },
